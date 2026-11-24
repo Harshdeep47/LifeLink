@@ -70,7 +70,7 @@ geocoding and routing. AWS SAM for infrastructure.
 
 ## Status
 
-610 backend tests and 294 frontend tests passing. Lint clean. Infrastructure
+657 backend tests and 294 frontend tests passing. Lint clean. Infrastructure
 validated by `cfn-lint` and `sam validate --lint`. **Never deployed.**
 
 ## Where to read further

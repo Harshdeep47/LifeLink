@@ -62,6 +62,8 @@ Two backend changesets and one frontend publish, each reviewed before it ran.
 | 1 | Frontend | invalidation `I76XJI99TM91I1THIOYYR9BXFN` | 13 files, invalidation **Completed** |
 | 2 | Backend | changeset `samcli-deploy1795507818` | `UPDATE_COMPLETE` 08:15:37 |
 | 3 | Backend | changeset `samcli-deploy1795508812` | `UPDATE_COMPLETE` 08:33:22 |
+| 4 | Demo data refresh | `seed_cloud.py --apply` ×2 | 24/24 dataset checks; freshness mix restored |
+| 5 | Duplicate event cleanup | `dedupe_request_events.py --apply` | 50 duplicate rows removed; 23 genuine protected |
 
 Each backend changeset was inspected **before execution** by diffing the
 deployed processed template against the changeset's, not by reading the
@@ -129,6 +131,34 @@ requester was refused `NO_UNRESERVED_STOCK`, and succeeded once released.
 effective `EXPIRED`, holding nothing. Left alone rather than hand-edited; see
 §8 of the post-mortem.
 
+## 3b. Demo data refresh and event cleanup
+
+The seeded freshness and verification labels had aged past their thresholds —
+48 h for `OUTDATED`, 72 h for `VERIFICATION_EXPIRED` — so every facility read
+identically and two filters returned nothing. The labels were correct; the data
+was nine days old.
+
+Re-seeding restored the designed mix, verified live:
+
+| | |
+|---|---|
+| FRESH | 9 facilities |
+| AGING | 1 (`fac-ambala-1`, 6.1 h) |
+| STALE | 1 (`fac-patiala-2`, **40.1 h** — its designed value) |
+| UNKNOWN | 1 (`fac-chd-2`, never reported) |
+| `verifiedOnly` filter | 0 → **11** results |
+| `minFreshness=FRESH` | 0 → **9** results |
+
+**This recurs.** Freshness lapses after 48 h and verification after 72 h, so
+re-run `seed_cloud.py --apply` shortly before any demonstration.
+
+That verification also exposed a seeding defect: request events embedded the
+run clock in their sort key, so five seed runs had left each demo request with
+five `REQUEST_CREATED` events, which the tracking page rendered. Fixed and
+cleaned up — [KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md) §1.19 — leaving exactly
+one seeded event per request and 25 genuine events untouched. A distinct,
+non-deletable residue is recorded as §1.20.
+
 ## 4. Authentication, verified live
 
 Real tokens obtained from the deployed user pool via
@@ -164,9 +194,9 @@ enforces the real policy: 12 characters with upper, lower, digit and symbol.
 
 | Gate | Result |
 |---|---|
-| Backend tests | **610** (536 unit, 74 integration) |
+| Backend tests | **657** (566 unit, 91 integration) |
 | Frontend tests | **294** (12 files) |
-| **Total** | **904** |
+| **Total** | **951** |
 | `ruff check` | clean |
 | `npm run lint` | clean, 0 errors |
 | `npm run build` | clean |
@@ -174,6 +204,7 @@ enforces the real policy: 12 characters with upper, lower, digit and symbol.
 | `sam validate --lint` | clean (SAM CLI 1.174.0) |
 | Dependency audit | passed; 8 development-only findings |
 | Live API checks | **19 auth + 37 workflow = 56**, all passing |
+| Live data operations | demo refresh (24/24 checks) and event cleanup (50 removed, 23 protected) |
 
 ### Live workflow coverage
 

@@ -41,7 +41,7 @@ administered through `us-east-1`, which the account's rules permit.
 | Platform | `backend/src/appcore/` | RBAC, context, logging, responses, auth |
 
 Dependencies point inward only. `domain/` has no outgoing dependencies at all,
-which is why 536 unit tests run in under two seconds with no mocks.
+which is why 566 unit tests run in under two seconds with no mocks.
 
 ## Feature ownership
 

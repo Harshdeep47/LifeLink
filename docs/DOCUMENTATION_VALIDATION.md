@@ -1,6 +1,6 @@
 # LifeLink — Documentation Validation Report
 
-Generated 2026-11-24 09:56 UTC by `scripts/build_books.py`.
+Generated 2026-11-24 09:59 UTC by `scripts/build_books.py`.
 
 Every figure below was measured by opening the produced PDF, not asserted by the author. A book is reported COMPLETE only when it builds, opens, renders text on every page, keeps its content inside the page, and contains no unresolved build directives.
 

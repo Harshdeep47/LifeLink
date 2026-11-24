@@ -70,8 +70,8 @@ books predate deployment", which was correct when written.
 
 All three were rebuilt on 24 November 2026 — 328 pages, 24 validation checks
 passing. Counts, versions and sizes are re-measured from the repository at
-build time, so the figures are current: **610 backend tests, 294 frontend
-tests, 904 in all**, 19 ADRs, 12 tables, 39 permissions. Four viva answers that
+build time, so the figures are current: **657 backend tests, 294 frontend
+tests, 951 in all**, 19 ADRs, 12 tables, 39 permissions. Four viva answers that
 had become false were corrected — they asserted there was no reservation model.
 
 The final rebuild ran **after** that day's deployment, so the books describe
