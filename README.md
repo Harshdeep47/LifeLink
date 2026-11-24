@@ -60,6 +60,7 @@ Measured on 24 November 2026, not estimated.
 | Frontend build | `npm run build` clean |
 | Infrastructure | `cfn-lint` clean; `sam validate --lint` clean (SAM CLI 1.174.0) |
 | **Deployed to AWS** | **Yes — live at https://d324z37do52g8f.cloudfront.net** · see [DEPLOYMENT_RECORD](docs/DEPLOYMENT_RECORD.md) |
+| Release commit | [`f9765af`](https://github.com/Harshdeep47/LifeLink/commit/f9765af20c22be144c8926d65c3602f63923e1c9) on `main` |
 | Documentation | Three PDF books, 328 pages, rebuilt 24 November 2026, 24 validation checks passing |
 
 > **Deployed and in sync.** Frontend and backend were both deployed on

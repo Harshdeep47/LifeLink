@@ -10,6 +10,9 @@
 **Live** `https://d324z37do52g8f.cloudfront.net`
 **API** `https://uk6itz2a5b.execute-api.ap-southeast-2.amazonaws.com/dev`
 **Stack** `lifelink-dev` · `ap-southeast-2` · account `426150327442`
+**Repository** `github.com/Harshdeep47/LifeLink`, branch `main`, release commit
+[`f9765af`](https://github.com/Harshdeep47/LifeLink/commit/f9765af20c22be144c8926d65c3602f63923e1c9)
+(`f9765af20c22be144c8926d65c3602f63923e1c9`)
 
 ### Proof of sync, not assertion
 
