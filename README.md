@@ -15,17 +15,31 @@ coordination.**
 ## What it does
 
 LifeLink connects people who need blood with blood banks, hospitals, donors and
-donation camps. Seven features:
+donation camps. **Four user-facing features:**
 
 | # | Feature | Summary |
 |---|---|---|
-| 1 | Blood bank inventory | Batch-level stock with expiry, quarantine, verification and audit |
-| 2 | Location and discovery | Geospatial search ranked by availability, freshness, verification and distance |
-| 3 | Camps and donors | Camp lifecycle, registration, attendance, verified donation, impact ledger |
-| 4 | Emergency coordination | Hospital-certified priority, deterministic matching, provider responses |
-| 5 | Frontend | Responsive, accessible React application with role-based dashboards |
-| 6 | Security and monitoring | RBAC, organization isolation, audit trail, structured logging, alarms |
-| 7 | Cloud infrastructure | AWS SAM template, validated |
+| 1 | **Blood Bank Inventory Management** | Batch-level stock with expiry, quarantine, independent verification and an append-only audit trail |
+| 2 | **Location Services and Navigation** | Geospatial search ranked by availability, freshness, verification and distance, with clustering maps and directions |
+| 3 | **Blood Donation Camps and Donor Engagement** | Camp lifecycle, registration, attendance, verified donation, impact ledger |
+| 4 | **Smart Emergency Coordination** | Hospital-certified clinical priority, deterministic matching, provider responses |
+
+Placing a **temporary reservation** is how a user makes an ordinary request for
+units — it is part of feature 1 rather than a fifth feature, and deliberately
+not a separate request entity
+([ADR-0018](docs/ARCHITECTURE_DECISIONS.md#adr-0018)). It is kept distinct from
+Smart Emergency Coordination throughout.
+
+### Supporting architecture
+
+These are engineering components that carry the four features, not additional
+products:
+
+| Component | What it provides |
+|---|---|
+| Frontend and user experience | Responsive, accessible React application with role-based dashboards |
+| Security and monitoring | RBAC over 39 permissions and 10 roles, organization isolation, audit trail, structured logging, CloudWatch alarms |
+| Cloud infrastructure | AWS SAM template, deployed as stack `lifelink-dev` |
 
 ## The design ideas worth knowing
 
@@ -115,7 +129,7 @@ and [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md) for a demonstration script.
 ```
 backend/          Python domain logic, services, repositories, Lambda handlers
 frontend/         React application
-infrastructure/   AWS SAM template (validated, not deployed)
+infrastructure/   AWS SAM template (validated and deployed as stack lifelink-dev)
 scripts/          Local stack, seeding, OpenAPI generation, book build
 docs/             Architecture, decisions, runbooks, and the three PDF books
 ```
@@ -197,10 +211,27 @@ sam validate --template infrastructure/template.yaml --lint
 
 ## AWS
 
-The project targets account `426150327442` in `ap-southeast-2` on the AWS Free
-Tier plan. **Nothing has been deployed.** The template is validated only, and
-deployment requires explicit approval — see
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+The project runs in account `426150327442` in `ap-southeast-2` on the AWS Free
+Tier plan. **It is deployed and live** as CloudFormation stack `lifelink-dev`,
+most recently on 24 November 2026, at a fixed cost of roughly **$0.40/month**.
+The template passes both `cfn-lint` and `sam validate --lint`. Any further
+deployment still requires explicit approval and a reviewed changeset — see
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and
+[docs/DEPLOYMENT_RECORD.md](docs/DEPLOYMENT_RECORD.md).
+
+Deployed resources: 12 DynamoDB tables, **six** Lambda functions (Python 3.14
+on arm64), one API Gateway HTTP API, four SQS queues with a dead-letter queue
+each, three S3 buckets, one CloudFront distribution, a Cognito user pool and
+identity pool, Amazon Location map/place-index/route-calculator, one Secrets
+Manager secret, SNS, eight CloudWatch alarms and a dashboard. EventBridge
+Scheduler drives the dispatcher and the maintenance sweep.
+
+**AWS Step Functions is not used** — there is no `AWS::StepFunctions` or
+`AWS::Events::Rule` resource in the template. Workflow state lives in DynamoDB
+and is advanced by the application; the scheduled dispatcher that does it is
+[ADR-0006](docs/ARCHITECTURE_DECISIONS.md#adr-0006). No ADR rejects Step
+Functions explicitly, so treat its absence as a scoping decision rather than a
+recorded one.
 
 One account constraint shapes the architecture: the Lambda concurrency ceiling
 is **10**, against a default of 1000. No function reserves concurrency, queue

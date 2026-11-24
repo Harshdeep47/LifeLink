@@ -70,17 +70,23 @@ books predate deployment", which was correct when written.
 
 All three were rebuilt on 24 November 2026 — 328 pages, 24 validation checks
 passing. Counts, versions and sizes are re-measured from the repository at
-build time, so the figures are current (604 backend tests, 19 ADRs, 12 tables,
-39 permissions). Four viva answers that had become false were corrected: they
-asserted there was no reservation model.
+build time, so the figures are current: **610 backend tests, 294 frontend
+tests, 904 in all**, 19 ADRs, 12 tables, 39 permissions. Four viva answers that
+had become false were corrected — they asserted there was no reservation model.
 
-Two cautions remain:
+The final rebuild ran **after** that day's deployment, so the books describe
+the **deployed** system. The repository and the running application are in
+sync, evidenced in
+[REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md) by a matching frontend
+bundle hash and Lambda code SHA. An earlier version of this entry warned that
+the books described a repository ahead of the live site; that is no longer the
+case.
 
-* They describe the **repository**, which is ahead of the live site. Read them
-  alongside [REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md).
-* Prose written before deployment may still say "not deployed" in places that
-  no fact directive covers. Where it does, read
-  [DEPLOYMENT_RECORD](DEPLOYMENT_RECORD.md).
+One caution remains:
+
+* Prose written before the first deployment may still say "not deployed" in a
+  place no fact directive covers. The known instances were corrected at source;
+  if you find another, read [DEPLOYMENT_RECORD](DEPLOYMENT_RECORD.md).
 
 ### 1.4 Camp discovery searches up to 20 km
 
@@ -267,6 +273,39 @@ No browser automation was available in any session. Every UI claim in this
 library rests on component tests under jsdom plus string checks against the
 live bundle. Twelve manual checks are listed in
 [REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md) §6.
+
+### 1.19 Re-seeding duplicates emergency request timeline events
+
+`seed_cloud.py` documents itself as idempotent — "a second run rewrites the
+same items rather than adding more" — and that holds for every record type
+**except** `REQUEST_EVENT`. Those rows use a sort key of
+`EVENT#<occurredAt>#seed0001`, and `occurredAt` derives from the seed run's
+clock, so each run writes a **new** key instead of overwriting the old one.
+
+The table has been seeded five times, so `demo-req-p1-1` now carries five
+`REQUEST_CREATED` events dated 14 November, 15 November (×3) and 24 November.
+This is **user-visible**: `GET /emergency-requests/{id}` returns all of them
+and `RequestTrackingPage` renders the timeline as an ordered list, so the
+emergency tracking page shows "REQUEST CREATED" five times.
+
+Functionally harmless — the lifecycle state is held on the request itself, not
+derived from the events — but it looks like a bug during a demonstration, and
+it will grow by one entry per request on every future seed run.
+
+Two candidate fixes, neither applied:
+
+1. **Make the event sort key deterministic** (for example
+   `EVENT#<index>#seed0001`, or derive the timestamp from a fixed base rather
+   than `now`). This makes re-seeding genuinely idempotent for events, which is
+   what the docstring already promises. It changes the seeder, so it needs a
+   backend-free code review and nothing else.
+2. **A narrow cleanup** in the style of
+   `scripts/reconcile_showcase_batches.py`: delete `REQUEST_EVENT` rows on
+   `demo-req-*` requests that duplicate an earlier event of the same type,
+   dry-run by default. Removes the existing duplicates but does not stop them
+   recurring.
+
+Doing (1) then (2) fixes both the cause and the residue.
 
 ## 2. Clinical
 

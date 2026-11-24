@@ -178,19 +178,26 @@ Close with this, not with a feature:
 
 ## Questions you will be asked
 
-**"Is it really deployed?"** Yes. 50 AWS resources, one CloudFormation stack,
-`ap-southeast-2`. The site is CloudFront over a private S3 bucket; the API is
-API Gateway and Lambda; the database is 11 DynamoDB tables.
+**"Is it really deployed?"** Yes — one CloudFormation stack, `lifelink-dev`, in
+`ap-southeast-2`, most recently updated on 24 November 2026. The site is
+CloudFront over a private S3 bucket; the API is API Gateway HTTP API in front
+of **six** Lambda functions; the database is **12 DynamoDB tables with 24
+global secondary indexes**. Step Functions is not used.
 
 **"Is this real blood data?"** No. 16 fictional facilities, all named
 "(DEMO)", every record tagged `demoData`, `SYNTHETIC`, `DEVELOPMENT`. Real city
 coordinates so distances are meaningful; no real institution.
 
-**"What did deploying teach you?"** Five defects that passed every local test
-and both template linters: the Lambda handler path was wrong so the function
-could not start; the deployment package needed Linux arm64 wheels built without
-Docker; the outbox publisher lacked one IAM grant that only Lambda validates;
-every route 404ed because the API Gateway stage name prefixes the path; and the
+**"What did deploying teach you?"** That a green test suite is not evidence a
+thing works. Deploying and then *exercising* it found defects no local check
+caught — most recently a reservation that released its held units when a
+facility confirmed it, which permitted overselling
+(`docs/RESERVATION_COUNTER_DEFECT.md`). The first deployment found five more
+that passed every local test and both template linters: the Lambda handler
+path was wrong so the function could not start; the deployment package needed
+Linux arm64 wheels built without Docker; the outbox publisher lacked one IAM
+grant that only Lambda validates; every route 404ed because the API Gateway
+stage name prefixes the path; and the
 "unknown is not zero" rule was broken in one of two code paths. That is the
 argument for deploying rather than trusting a validated template.
 

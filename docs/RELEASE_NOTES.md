@@ -105,6 +105,10 @@ First complete build. **Not deployed to AWS.** Runs locally against a
 DynamoDB-compatible endpoint; the infrastructure template is validated by two
 independent tools but has never been applied.
 
+> *Historical: true at v0.1.0. LifeLink was deployed to AWS later the same
+> day — see the Unreleased section above and
+> [DEPLOYMENT_RECORD](DEPLOYMENT_RECORD.md).*
+
 All figures below were measured on 15 November 2026 by the commands named
 beside them, not estimated.
 

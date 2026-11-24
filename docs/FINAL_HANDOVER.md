@@ -501,6 +501,10 @@ what this project can claim:
 
 1. **Nothing is deployed.** Every AWS operational claim is a design
    expectation. The point-in-time restore procedure is **untested**.
+   *(Historical, 15 November 2026. LifeLink was deployed later that day and
+   again on 24 November; see [DEPLOYMENT_RECORD](DEPLOYMENT_RECORD.md) and
+   [REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md). The restore procedure
+   is still untested.)*
 2. **The blood compatibility reference has not been reviewed by a qualified
    professional.** Marked as such in the data file, the API response, the
    interface and all three books; the loader refuses to start without a review
@@ -584,6 +588,14 @@ Verified for you before writing these commands: 233 files would be added, and
 handover), `*.pem`, `*.key`, `credentials`, `.venv/`, `node_modules/` and
 `dist/` are all excluded.
 
+> **Superseded, 24 November 2026.** This publication sequence was carried out:
+> the repository is public at `github.com/Harshdeep47/LifeLink`, and the
+> release commit is recorded in [DEPLOYMENT_RECORD](DEPLOYMENT_RECORD.md).
+> The suggested commit message below is left exactly as written, and every
+> figure in it is historical — the project now has 904 tests, 12 DynamoDB
+> tables, 58 routes and 328 pages of books, and it **is** deployed. Do not
+> reuse this message.
+
 ```bash
 cd d:/LifeLink
 
@@ -600,6 +612,9 @@ git status
 git diff --cached --stat
 
 # 4. Commit.
+#    SUPERSEDED: this was done. Every figure in the message below is historical
+#    (the project now has 904 tests, 12 tables, 58 routes, 328 pages) and it IS
+#    deployed. Left verbatim as a record; do not reuse it.
 git commit -m "LifeLink v0.1.0: seven features, 332 tests, three technical books
 
 Blood availability and donation coordination platform.
@@ -625,6 +640,12 @@ If you would rather publish somewhere else, replace step 5 with
 plainly that nothing is deployed, that the compatibility reference is
 unreviewed, and that all data is synthetic. Keep those statements. They are
 what make the project defensible rather than overclaiming.
+
+> *Updated 24 November 2026: the repository is now public and the deployment
+> statements were corrected at source, since the project is deployed. The
+> other two statements stand unchanged, and the principle behind this
+> paragraph is the reason the corrections were made by stating the new truth
+> rather than by deleting the old caveats.*
 
 ## 26. Recommended next steps
 

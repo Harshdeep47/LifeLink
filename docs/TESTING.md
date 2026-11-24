@@ -216,11 +216,12 @@ of zero.
 | Area | Reason |
 |---|---|
 | Load and throughput | At a concurrency ceiling of 10, a load test measures the ceiling |
-| Backup restoration | Nothing is deployed |
-| Cognito token issuance | Local development uses a different issuer |
+| Backup restoration | Never rehearsed; PITR is enabled on 8 deployed tables |
+| Cognito token issuance, in the automated suite | Local development uses a different issuer; covered instead by 19 live checks against the deployed pool |
 | Accessibility with assistive technology | Structural work done; no audit run |
-| Deployment rollback | Nothing is deployed |
+| Deployment rollback | Never exercised; no deployment has failed since the stack went live |
 | File upload validation | No upload flow exists |
+| Browser workflows | No browser automation available; 12 manual checks remain pending |
 
 Each is listed in [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 

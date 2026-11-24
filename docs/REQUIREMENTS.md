@@ -42,7 +42,7 @@
 | FR-36 | Prevent cross-organization access and insecure direct object references | 6 | Implemented |
 | FR-37 | Audit every privileged operation with actor, action, resource and time | 6 | Implemented |
 | FR-38 | Keep sensitive data out of logs, URLs and error messages | 6 | Implemented |
-| FR-39 | Define infrastructure reproducibly | 7 | Implemented, **not deployed** |
+| FR-39 | Define infrastructure reproducibly | 7 | Implemented and **deployed** as stack `lifelink-dev` |
 | FR-40 | Support SMS notifications | 3, 6 | **NOT IMPLEMENTED** — denied by SCP and account plan |
 | FR-41 | File upload with validation and presigned URLs | 6 | **NOT IMPLEMENTED** — no upload flow built |
 
@@ -58,7 +58,7 @@
 | NFR-6 | Unknown never rendered as zero | Always | Yes — unit and UI tests |
 | NFR-7 | Geospatial search misses no in-range facility | Always | Yes — property test at 10 radii |
 | NFR-8 | Search query fan-out bounded | Under 150 cells | Yes — measured, max 79 |
-| NFR-9 | API p95 latency | Under 3s | **Not measured** — not deployed |
+| NFR-9 | API p95 latency | Under 3s | **Not measured** — deployed but never load-tested |
 | NFR-10 | Availability | Single region | **Not measured** |
 | NFR-11 | Local runnability without AWS | Full stack | Yes |
 | NFR-12 | Keyboard navigable, no colour-only status | Full | Partial — no audit run |
@@ -75,8 +75,8 @@
 | SES sandbox | Account | Verified recipients only, 200/day |
 | SMS denied by SCP `p-2cb1m8xd` | Account | Channel not implemented |
 | AWS Free Tier plan | Account | Service availability verified in Phase 0 |
-| No deployment | Instruction | Infrastructure validated only |
-| No GitHub push | Instruction | Handover commands provided instead |
+| Deployment approval required per change | Instruction | Each deployment runs from a reviewed CloudFormation changeset |
+| GitHub publication | Owner-approved | Published to `github.com/Harshdeep47/LifeLink` on `main` |
 | No medically reviewed compatibility reference | Not supplied | Data marked `UNREVIEWED_SYNTHETIC` throughout |
 
 ## Traceability

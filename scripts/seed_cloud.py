@@ -68,6 +68,32 @@ for _placeholder in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_
 
 BANNER = "DEMO ENVIRONMENT - SYNTHETIC DATA - NOT REAL BLOOD AVAILABILITY"
 
+#: Logical tables this script writes -- one per repository DemoSeeder uses:
+#: IdentityRepository -> organizations, FacilityRepository -> facilities,
+#: InventoryRepository -> inventory, CampRepository -> camps,
+#: DonationRepository -> donations, EmergencyRepository -> emergency,
+#: AlertRepository -> alerts, NotificationRepository -> notifications.
+#:
+#: Named here rather than written inline in the preview, because the two
+#: drifted: the preview listed seven tables and omitted `notifications`, so an
+#: operator reviewing a dry run could not see that notification preferences
+#: would be rewritten. Add a repository to DemoSeeder, add its table here.
+SEEDED_TABLES = (
+    "organizations",
+    "facilities",
+    "inventory",
+    "camps",
+    "donations",
+    "emergency",
+    "alerts",
+    "notifications",
+)
+
+#: Logical tables this script must never write, shown in the preview because
+#: "what is safe" is the question an operator actually has. Reservations hold
+#: live user state; neither this file nor seed_demo.py references that table.
+UNTOUCHED_TABLES = ("reservations", "audit", "idempotency", "outbox")
+
 #: Environments this script will write to. Anything else is refused.
 ALLOWED_ENVIRONMENTS = {"dev", "development"}
 
@@ -247,10 +273,8 @@ def existing_counts(stack: dict) -> dict[str, int]:
 
     dynamodb = boto3.client("dynamodb", region_name=stack["region"])
     prefix = f"lifelink-{stack['environment']}"
-    tables = ["organizations", "facilities", "inventory", "camps",
-              "donations", "emergency", "alerts"]
     counts = {}
-    for logical in tables:
+    for logical in SEEDED_TABLES:
         name = f"{prefix}-{logical}"
         try:
             total = 0
@@ -283,15 +307,20 @@ def preview(stack: dict) -> int:
     print(f"  table prefix : lifelink-{stack['environment']}")
     api = stack["outputs"].get("ApiEndpoint", "?")
     print(f"  api          : {api}")
-    print("\n  Current contents:")
+    print(f"\n  Tables this run WOULD WRITE ({len(SEEDED_TABLES)}), and their current contents:")
     for logical, info in existing_counts(stack).items():
         if "error" in info:
-            print(f"    {logical:<12} ERROR {info['error']}")
+            print(f"    {logical:<14} ERROR {info['error']}")
         else:
-            print(f"    {logical:<12} {info['total']:>5} items ({info['demo']} marked demoData)")
-    print("\n  Would write: organizations, users, facilities, inventory batches,")
-    print("  showcase batches, camps, registrations, donations, emergency requests,")
-    print("  provider responses and alerts -- all marked demoData/SYNTHETIC.")
+            print(f"    {logical:<14} {info['total']:>5} items ({info['demo']} marked demoData)")
+    print(f"\n  Tables this run WOULD NOT TOUCH ({len(UNTOUCHED_TABLES)}):")
+    print(f"    {', '.join(UNTOUCHED_TABLES)}")
+    print("    (reservations hold live user state; no code path here writes them)")
+    print("\n  Records written: organizations, users, memberships, facilities,")
+    print("  inventory batches, showcase batches, camps, camp staff, registrations,")
+    print("  donations, the impact ledger, emergency requests, provider responses,")
+    print("  request events, availability alerts and notification preferences --")
+    print("  all marked demoData/SYNTHETIC/DEVELOPMENT.")
     print("\n  This script never deletes, resets or truncates. Re-running rewrites")
     print("  the same fixed identifiers rather than adding duplicates.")
     return 0
