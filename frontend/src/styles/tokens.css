@@ -1,0 +1,183 @@
+/*
+ * LifeLink design tokens.
+ *
+ * The palette is deep crimson on white and light grey with navy text, as the
+ * specification suggests. Status colours are chosen for contrast rather than
+ * decoration: in an urgent workflow, a user must be able to tell "stale data"
+ * from "verified" at a glance and without relying on colour alone -- every
+ * status also carries a text label and an icon shape.
+ */
+
+:root {
+  /* Brand */
+  --crimson-900: #5c0a14;
+  --crimson-800: #7a0f1d;
+  --crimson-700: #981425;
+  --crimson-600: #b01b2e;
+  --crimson-500: #c62436;
+  --crimson-100: #fbe8ea;
+  --crimson-50: #fdf4f5;
+
+  /* Neutrals */
+  --navy-900: #0f172a;
+  --navy-800: #1b2439;
+  --navy-700: #2b3650;
+  --grey-600: #5a6478;
+  --grey-500: #7b849a;
+  --grey-400: #a8b0c0;
+  --grey-300: #cfd5e0;
+  --grey-200: #e4e8ef;
+  --grey-100: #f1f4f8;
+  --grey-50: #f8fafc;
+  --white: #ffffff;
+
+  /* Status: availability */
+  --status-available: #0f7a4f;
+  --status-available-bg: #e6f5ee;
+  --status-partial: #9a6300;
+  --status-partial-bg: #fdf3e0;
+  --status-unavailable: #8a1420;
+  --status-unavailable-bg: #fbeaec;
+  --status-unknown: #4a5568;
+  --status-unknown-bg: #eceff4;
+
+  /* Status: data freshness */
+  --fresh: #0f7a4f;
+  --fresh-bg: #e6f5ee;
+  --aging: #8a6a00;
+  --aging-bg: #fdf6e3;
+  --stale: #a04a00;
+  --stale-bg: #fdefe3;
+  --outdated: #7a1420;
+  --outdated-bg: #fbeaec;
+
+  /* Priority */
+  --p1: #a1121f;
+  --p1-bg: #fbe9eb;
+  --p2: #9a5a00;
+  --p2-bg: #fdf3e2;
+  --p3: #2b5f8a;
+  --p3-bg: #e8f1f8;
+
+  /* Typography */
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 3rem;
+
+  /* Spacing on a 4px grid */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 28px rgba(15, 23, 42, 0.12);
+
+  --banner-height: 38px;
+  --header-height: 64px;
+
+  --focus-ring: 0 0 0 3px rgba(198, 36, 54, 0.35);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--navy-800);
+  background: var(--grey-50);
+}
+
+h1, h2, h3, h4 {
+  color: var(--navy-900);
+  line-height: 1.25;
+  margin: 0 0 var(--space-3);
+  font-weight: 650;
+}
+
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-2xl); }
+h3 { font-size: var(--text-xl); }
+h4 { font-size: var(--text-lg); }
+
+p { margin: 0 0 var(--space-3); }
+
+a {
+  color: var(--crimson-700);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+/* A visible focus ring everywhere -- keyboard navigation is a requirement,
+   not a nicety, for a service used under pressure. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+button {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: var(--text-base);
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

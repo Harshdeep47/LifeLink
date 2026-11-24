@@ -1,7 +1,14 @@
 # Environment variables and secrets
 .env
 .env.*
+# Example files carry key names and instructions, never values, and must be
+# committed: without them a fresh clone cannot tell which VITE_* keys the
+# production build needs, and sign-in silently does nothing. The negation has
+# to be a glob -- `!.env.example` alone un-ignores only that exact name, so
+# `frontend/.env.production.example` stayed excluded.
+!*.env.example
 !.env.example
+!*.example
 
 # AWS credentials
 .aws/
@@ -9,10 +16,17 @@ credentials
 *.pem
 *.key
 
+# Local development signing keys — the whole directory, not just *.pem,
+# so a key generated with a different extension cannot leak.
+.local-keys/
+
 # Dependencies
 node_modules/
 venv/
 .venv/
+# The AWS SAM CLI is installed into its own virtual environment so its pinned
+# boto3/click versions cannot disturb the project venv the tests run in.
+.sam-venv/
 __pycache__/
 
 # Build outputs
@@ -25,3 +39,9 @@ build/
 
 # Logs
 *.log
+
+# The original build specification. Kept locally as the source of requirements,
+# excluded from the repository at the owner's request: it is a 67 KB prompt
+# document rather than project documentation, and everything it specifies is
+# recorded in docs/REQUIREMENTS.md and the ADRs.
+MASTER_BUILD_PROMPT.md

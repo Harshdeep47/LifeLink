@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "effectiveFrom": "2026-11-15",
+  "reviewStatus": "UNREVIEWED_SYNTHETIC",
+  "reviewedBy": null,
+  "reviewedAt": null,
+  "sourceCitation": "Standard ABO/Rh compatibility relationships as commonly described in transfusion-medicine teaching material. NOT independently reviewed for this project.",
+  "disclaimer": "LifeLink uses these relationships only to narrow operational matching. They are NOT a clinical authority. No qualified professional has reviewed this table for this deployment. Compatibility, crossmatching and release decisions must be made by qualified personnel using validated laboratory procedures.",
+  "notes": [
+    "Red-cell direction: a recipient may receive from the listed donor groups.",
+    "Plasma direction is the inverse of red cells and is encoded separately.",
+    "Platelets are listed conservatively; ABO-identical is preferred in practice and the engine flags non-identical platelet matches for review.",
+    "Whole blood requires ABO/Rh identical units.",
+    "An Rh-negative recipient is never listed as able to receive Rh-positive red cells.",
+    "Any combination absent from this table resolves to UNKNOWN, never to COMPATIBLE."
+  ],
+  "rules": {
+    "PRBC": {
+      "O-": ["O-"],
+      "O+": ["O-", "O+"],
+      "A-": ["O-", "A-"],
+      "A+": ["O-", "O+", "A-", "A+"],
+      "B-": ["O-", "B-"],
+      "B+": ["O-", "O+", "B-", "B+"],
+      "AB-": ["O-", "A-", "B-", "AB-"],
+      "AB+": ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"]
+    },
+    "WHOLE_BLOOD": {
+      "O-": ["O-"],
+      "O+": ["O-", "O+"],
+      "A-": ["A-"],
+      "A+": ["A-", "A+"],
+      "B-": ["B-"],
+      "B+": ["B-", "B+"],
+      "AB-": ["AB-"],
+      "AB+": ["AB-", "AB+"]
+    },
+    "FFP": {
+      "O-": ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"],
+      "O+": ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"],
+      "A-": ["A-", "A+", "AB-", "AB+"],
+      "A+": ["A-", "A+", "AB-", "AB+"],
+      "B-": ["B-", "B+", "AB-", "AB+"],
+      "B+": ["B-", "B+", "AB-", "AB+"],
+      "AB-": ["AB-", "AB+"],
+      "AB+": ["AB-", "AB+"]
+    },
+    "PLATELETS": {
+      "O-": ["O-"],
+      "O+": ["O-", "O+"],
+      "A-": ["A-", "O-"],
+      "A+": ["A-", "A+", "O-", "O+"],
+      "B-": ["B-", "O-"],
+      "B+": ["B-", "B+", "O-", "O+"],
+      "AB-": ["AB-", "A-", "B-", "O-"],
+      "AB+": ["AB-", "AB+", "A-", "A+", "B-", "B+", "O-", "O+"]
+    }
+  },
+  "identicalPreferred": ["PLATELETS", "WHOLE_BLOOD"]
+}

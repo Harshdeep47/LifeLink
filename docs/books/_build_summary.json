@@ -1,0 +1,221 @@
+[
+  {
+    "book": 1,
+    "title": "System Architecture and AWS Cloud Engineering",
+    "source": "docs\\books\\LifeLink_Book_1_System_Architecture_and_AWS/ (7 parts)",
+    "resolved": "docs\\books\\_resolved\\LifeLink_Book_1_System_Architecture_and_AWS.resolved.md",
+    "pdf": "docs\\books\\LifeLink_Book_1_System_Architecture_and_AWS.pdf",
+    "chapters": 30,
+    "sections": 169,
+    "figures": 16,
+    "tables": 45,
+    "words": 16646,
+    "pages": 80,
+    "target_pages": "70-100",
+    "meets_target": true,
+    "directive_problems": [],
+    "validation": {
+      "path": "D:\\LifeLink\\docs\\books\\LifeLink_Book_1_System_Architecture_and_AWS.pdf",
+      "checks": [
+        {
+          "name": "file exists",
+          "passed": true,
+          "detail": "236 KB"
+        },
+        {
+          "name": "opens",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "page count",
+          "passed": true,
+          "detail": "80 pages (minimum expected 20)"
+        },
+        {
+          "name": "no blank pages in the body",
+          "passed": true,
+          "detail": "every page has body content"
+        },
+        {
+          "name": "no content outside the page",
+          "passed": true,
+          "detail": "nothing clipped"
+        },
+        {
+          "name": "no unresolved build directives",
+          "passed": true,
+          "detail": "all directives resolved"
+        },
+        {
+          "name": "every listing caption has its listing",
+          "passed": true,
+          "detail": "28 listings rendered"
+        },
+        {
+          "name": "diagrams rendered",
+          "passed": true,
+          "detail": "1502 vector drawing operations"
+        },
+        {
+          "name": "contents page numbers are exact",
+          "passed": true,
+          "detail": "no drift between layout passes"
+        }
+      ],
+      "ok": true,
+      "pages": 80,
+      "total_characters": 146437,
+      "vector_drawings": 1502,
+      "raster_images": 0
+    },
+    "ok": true,
+    "status": "COMPLETE"
+  },
+  {
+    "book": 2,
+    "title": "Implementation and Operations Guide",
+    "source": "docs\\books\\LifeLink_Book_2_Implementation_and_Operations/ (9 parts)",
+    "resolved": "docs\\books\\_resolved\\LifeLink_Book_2_Implementation_and_Operations.resolved.md",
+    "pdf": "docs\\books\\LifeLink_Book_2_Implementation_and_Operations.pdf",
+    "chapters": 50,
+    "sections": 211,
+    "figures": 7,
+    "tables": 32,
+    "words": 26633,
+    "pages": 147,
+    "target_pages": "90-130",
+    "meets_target": true,
+    "directive_problems": [],
+    "validation": {
+      "path": "D:\\LifeLink\\docs\\books\\LifeLink_Book_2_Implementation_and_Operations.pdf",
+      "checks": [
+        {
+          "name": "file exists",
+          "passed": true,
+          "detail": "401 KB"
+        },
+        {
+          "name": "opens",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "page count",
+          "passed": true,
+          "detail": "147 pages (minimum expected 20)"
+        },
+        {
+          "name": "no blank pages in the body",
+          "passed": true,
+          "detail": "every page has body content"
+        },
+        {
+          "name": "no content outside the page",
+          "passed": true,
+          "detail": "nothing clipped"
+        },
+        {
+          "name": "no unresolved build directives",
+          "passed": true,
+          "detail": "all directives resolved"
+        },
+        {
+          "name": "every listing caption has its listing",
+          "passed": true,
+          "detail": "132 listings rendered"
+        },
+        {
+          "name": "diagrams rendered",
+          "passed": true,
+          "detail": "1833 vector drawing operations"
+        },
+        {
+          "name": "contents page numbers are exact",
+          "passed": true,
+          "detail": "no drift between layout passes"
+        }
+      ],
+      "ok": true,
+      "pages": 147,
+      "total_characters": 281984,
+      "vector_drawings": 1833,
+      "raster_images": 0
+    },
+    "ok": true,
+    "status": "COMPLETE"
+  },
+  {
+    "book": 3,
+    "title": "Engineering Concepts, Viva and Interview Preparation",
+    "source": "docs\\books\\LifeLink_Book_3_Interview_Viva_and_Engineering/ (12 parts)",
+    "resolved": "docs\\books\\_resolved\\LifeLink_Book_3_Interview_Viva_and_Engineering.resolved.md",
+    "pdf": "docs\\books\\LifeLink_Book_3_Interview_Viva_and_Engineering.pdf",
+    "chapters": 63,
+    "sections": 48,
+    "figures": 5,
+    "tables": 7,
+    "words": 27427,
+    "pages": 101,
+    "target_pages": "80-120",
+    "meets_target": true,
+    "directive_problems": [],
+    "validation": {
+      "path": "D:\\LifeLink\\docs\\books\\LifeLink_Book_3_Interview_Viva_and_Engineering.pdf",
+      "checks": [
+        {
+          "name": "file exists",
+          "passed": true,
+          "detail": "254 KB"
+        },
+        {
+          "name": "opens",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "page count",
+          "passed": true,
+          "detail": "101 pages (minimum expected 20)"
+        },
+        {
+          "name": "no blank pages in the body",
+          "passed": true,
+          "detail": "every page has body content"
+        },
+        {
+          "name": "no content outside the page",
+          "passed": true,
+          "detail": "nothing clipped"
+        },
+        {
+          "name": "no unresolved build directives",
+          "passed": true,
+          "detail": "all directives resolved"
+        },
+        {
+          "name": "every listing caption has its listing",
+          "passed": true,
+          "detail": "13 listings rendered"
+        },
+        {
+          "name": "diagrams rendered",
+          "passed": true,
+          "detail": "698 vector drawing operations"
+        },
+        {
+          "name": "contents page numbers are exact",
+          "passed": true,
+          "detail": "no drift between layout passes"
+        }
+      ],
+      "ok": true,
+      "pages": 101,
+      "total_characters": 194927,
+      "vector_drawings": 698,
+      "raster_images": 0
+    },
+    "ok": true,
+    "status": "COMPLETE"
+  }
+]

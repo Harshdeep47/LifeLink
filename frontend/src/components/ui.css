@@ -1,0 +1,343 @@
+/* --- buttons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn--sm { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.btn--md { font-size: var(--text-sm); }
+.btn--lg { padding: var(--space-3) var(--space-5); font-size: var(--text-base); }
+
+.btn--primary { background: var(--crimson-600); color: var(--white); }
+.btn--primary:hover:not(:disabled) { background: var(--crimson-700); }
+.btn--secondary { background: var(--white); color: var(--navy-800); border-color: var(--grey-300); }
+.btn--secondary:hover:not(:disabled) { background: var(--grey-100); }
+.btn--ghost { background: transparent; color: var(--navy-700); border-color: transparent; }
+.btn--ghost:hover:not(:disabled) { background: var(--grey-100); }
+.btn--danger { background: var(--crimson-800); color: var(--white); }
+.btn--danger:hover:not(:disabled) { background: var(--crimson-900); }
+.btn--success { background: var(--status-available); color: var(--white); }
+
+/* --- spinner --- */
+.spinner { display: inline-flex; align-items: center; }
+.spinner__ring {
+  width: 1em; height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- state panels --- */
+.state-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius);
+  color: var(--grey-600);
+}
+.state-panel__glyph { font-size: var(--text-2xl); color: var(--grey-400); }
+.state-panel__title { margin: 0; font-size: var(--text-lg); color: var(--navy-800); }
+.state-panel__message { margin: 0; max-width: 60ch; }
+.state-panel__meta { margin: 0; font-size: var(--text-xs); color: var(--grey-500); }
+.state-panel--error { border-color: #efc9ce; background: var(--crimson-50); }
+.state-panel--error .state-panel__glyph { color: var(--crimson-600); }
+.state-panel--empty { border-style: dashed; }
+
+/* --- cards --- */
+.card {
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--grey-200);
+  background: var(--grey-50);
+}
+.card__title { margin: 0; font-size: var(--text-lg); }
+.card__subtitle { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--grey-600); }
+.card__actions { display: flex; gap: var(--space-2); flex-shrink: 0; flex-wrap: wrap; }
+.card__body { padding: var(--space-4); }
+.card--critical { border-color: #efc2c7; }
+.card--critical .card__header { background: var(--p1-bg); }
+
+/* --- fields --- */
+.field { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
+.field__label { font-size: var(--text-sm); font-weight: 600; color: var(--navy-800); }
+.field__required { color: var(--crimson-600); }
+.field__hint { margin: 0; font-size: var(--text-xs); color: var(--grey-600); }
+.field__error { margin: 0; font-size: var(--text-xs); color: var(--crimson-700); font-weight: 600; }
+.field input, .field select, .field textarea {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--grey-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--navy-900);
+  width: 100%;
+}
+.field input:hover, .field select:hover { border-color: var(--grey-400); }
+.field--invalid input, .field--invalid select, .field--invalid textarea { border-color: var(--crimson-600); }
+
+/* --- notices ---
+
+   Rebalanced rather than removed. The previous styling gave every notice a
+   large tinted panel with a heavy left bar, so a page carrying three
+   explanatory notes looked like a page reporting three problems, and a real
+   warning carried no more weight than a footnote.
+
+   Now: informational notes are quiet (neutral surface, hairline border) and
+   only warning and danger keep a tinted background, so an actual problem
+   stands out again. No explanatory content was deleted — the words moved into
+   smaller type, not out of the page. */
+
+.notice {
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--grey-200);
+  border-left: 3px solid var(--grey-300);
+  background: var(--grey-50);
+  color: var(--navy-800);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+.notice__title {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.notice__body > :last-child { margin-bottom: 0; }
+
+/* Informational: neutral by default, so it reads as context, not an alert. */
+.notice--info    { background: var(--grey-50);            border-left-color: var(--p3);          color: var(--navy-800); }
+/* Problems keep their colour: these are the ones that should interrupt. */
+.notice--warning { background: var(--status-partial-bg);   border-left-color: var(--status-partial);   color: #6d4700; }
+.notice--danger  { background: var(--status-unavailable-bg);border-left-color: var(--status-unavailable);color: #6d1018; }
+.notice--success { background: var(--status-available-bg); border-left-color: var(--status-available); color: #0b5c3b; }
+
+/* Inline explanatory text: for an explanation that belongs beside the thing
+   it explains rather than in a panel above it. */
+.inline-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  color: var(--grey-600);
+}
+.inline-note strong { color: var(--navy-800); }
+
+/* --- definition list --- */
+.definition-list { margin: 0; display: grid; gap: var(--space-2); }
+.definition-list__row { display: grid; grid-template-columns: minmax(130px, 34%) 1fr; gap: var(--space-3); align-items: baseline; }
+.definition-list dt { font-size: var(--text-xs); font-weight: 650; color: var(--grey-600); text-transform: uppercase; letter-spacing: 0.04em; }
+.definition-list dd { margin: 0; font-size: var(--text-sm); color: var(--navy-800); }
+
+@media (max-width: 560px) {
+  .definition-list__row { grid-template-columns: 1fr; gap: 0; }
+}
+
+/* --- generic helpers --- */
+.grid { display: grid; gap: var(--space-4); }
+.grid--2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid--3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.row { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
+.muted { color: var(--grey-600); }
+.text-sm { font-size: var(--text-sm); }
+.text-xs { font-size: var(--text-xs); }
+.page-header { margin-bottom: var(--space-5); }
+.page-header p { max-width: 75ch; color: var(--grey-600); }
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.table th, .table td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--grey-200); }
+.table th { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--grey-600); background: var(--grey-50); }
+.table tbody tr:hover { background: var(--grey-50); }
+.table-scroll { overflow-x: auto; }
+
+/* The nearest result, marked on a card. Same treatment as the facility list
+   so "nearest" looks the same wherever it appears. */
+.card--nearest {
+  border-left: 3px solid var(--crimson-700);
+  background: var(--crimson-50);
+}
+
+/* --- directory rows (Explore dashboards) ---------------------------------- */
+.directory { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.directory__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius);
+}
+.directory__row--nearest { border-left: 3px solid var(--crimson-700); background: var(--crimson-50); }
+.directory__main { min-width: 0; }
+.directory__name { margin: 0 0 2px; font-size: var(--text-base); }
+.directory__side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); flex-shrink: 0; }
+
+.pill--popular {
+  margin-left: var(--space-2);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--navy-700);
+  color: var(--white);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* Filter bars wrap rather than scroll, so nothing is hidden on a phone. */
+.filter-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.filter-bar .field { margin-bottom: 0; }
+.filter-bar select, .filter-bar input { min-width: 150px; width: auto; }
+
+@media (max-width: 640px) {
+  .directory__row { flex-direction: column; }
+  .directory__side { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+}
+
+/* A selectable result row: clicking it centres the map on that location. */
+.directory__row--selectable, .facility--selectable { cursor: pointer; }
+.directory__row--selected, .facility--selected {
+  outline: 2px solid var(--crimson-700);
+  outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Reservation queue (facility staff) and activity lists (a user's own items).
+
+   Both are three-column rows -- what it is, what state it is in, what you can
+   do about it -- and both collapse to stacked blocks on a narrow screen rather
+   than scrolling sideways, matching .directory above. The shared shape is
+   deliberate: a reservation looks the same to the person who placed it and the
+   staff member answering it, which makes the two screens explain each other.
+   --------------------------------------------------------------------------- */
+
+.queue, .activity {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.queue__row, .activity__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--white);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius);
+}
+
+.queue__main, .activity__main { min-width: 0; }
+.queue__headline, .activity__headline { margin: 0 0 2px; font-size: var(--text-base); }
+
+.queue__status, .activity__status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.queue__actions, .activity__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* The decline form spans the whole row: it appears below the action that
+   opened it rather than squeezing into the actions column. */
+.queue__decline {
+  grid-column: 1 / -1;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--grey-200);
+}
+.queue__decline-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.queue__heading {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--grey-600);
+}
+
+/* Closed items are collapsed by default: they are reference, not work. */
+.queue__history, .activity__history { margin-top: var(--space-3); }
+.queue__history > summary, .activity__history > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--navy-700);
+  padding: var(--space-2) 0;
+}
+
+.link-list { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.link-list li { font-size: var(--text-sm); }
+
+@media (max-width: 720px) {
+  .queue__row, .activity__row { grid-template-columns: minmax(0, 1fr); }
+  .queue__status, .activity__status { align-items: flex-start; text-align: left; }
+  .queue__actions, .activity__actions { flex-direction: row; flex-wrap: wrap; }
+}
+
+/* ---------------------------------------------------------------------------
+   Record provenance.
+
+   Two pills and a short definition list. The warning paragraph is styled to
+   stand out because it covers the one case a reader could act on by mistake:
+   a real institution shown beside demonstration stock.
+   --------------------------------------------------------------------------- */
+
+.provenance__pills { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.provenance__list { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.provenance__row { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: var(--space-3); }
+.provenance__row dt { font-weight: 600; color: var(--grey-600); font-size: var(--text-sm); }
+.provenance__row dd { margin: 0; font-size: var(--text-sm); }
+
+.provenance__warning {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border-left: 3px solid var(--crimson-700);
+  background: var(--crimson-50);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 640px) {
+  .provenance__row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}

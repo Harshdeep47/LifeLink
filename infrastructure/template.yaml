@@ -1,0 +1,1490 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  LifeLink - blood availability, facility discovery, voluntary donation and
+  emergency coordination platform.
+
+  Deployment notes for reviewers:
+    * Every regional resource is created in the stack's own region. The project
+      is pinned to ap-southeast-2 and this template never names another region.
+    * No function sets ReservedConcurrentExecutions. The account's Lambda
+      concurrency ceiling is 10 (measured, not assumed), so reserving any of it
+      would starve the synchronous API tier. See ADR-0014.
+    * Lambda@Edge, CloudFormation StackSets, cross-region replication and
+      multi-region KMS keys are all deliberately absent -- they are unavailable
+      on this account.
+    * This template has NOT been deployed. It is validated only.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Environment }
+        Parameters: [Environment, LogRetentionDays]
+      - Label: { default: Identity }
+        Parameters: [CognitoDomainPrefix, CallbackUrl, LogoutUrl]
+      - Label: { default: Notifications }
+        Parameters: [SesSenderAddress]
+      - Label: { default: Location }
+        Parameters: [EnableLocationResources]
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name. Controls table removal policy and seeding guards.
+
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 180, 365]
+    Description: CloudWatch Logs retention. Logs are a real cost; 30 days is the default.
+
+  CognitoDomainPrefix:
+    Type: String
+    Default: lifelink-dev
+    MinLength: 3
+    MaxLength: 40
+    AllowedPattern: '^[a-z0-9-]+$'
+    Description: Prefix for the Cognito managed login domain. Must be globally unique.
+
+  CallbackUrl:
+    Type: String
+    Default: http://localhost:5173/auth/callback
+    Description: OAuth redirect URI for the browser application.
+
+  LogoutUrl:
+    Type: String
+    Default: http://localhost:5173/
+    Description: OAuth sign-out redirect URI.
+
+  CorsAllowOrigins:
+    Type: CommaDelimitedList
+    Default: 'http://localhost:5173,http://127.0.0.1:5173'
+    Description: >
+      Browser origins permitted to call the API. Scheme and host only -- no
+      path and no trailing slash, because an Origin header never has either.
+      Explicit origins rather than '*': the API is called with an Authorization
+      header, and a wildcard would let any site read authenticated responses
+      from a user's browser. The deployed CloudFront origin must be passed in
+      at deploy time.
+
+  SesSenderAddress:
+    Type: String
+    Default: ''
+    Description: >
+      Verified SES sender. Leave empty to disable email. The account is in the
+      SES sandbox, so only verified recipients receive mail.
+
+  EnableLocationResources:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Create Amazon Location map, place index and route calculator.
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
+  CreateLocation: !Equals [!Ref EnableLocationResources, 'true']
+  HasSesSender: !Not [!Equals [!Ref SesSenderAddress, '']]
+
+Globals:
+  Function:
+    Runtime: python3.14
+    Architectures: [arm64]          # Graviton: cheaper at identical capability
+    Timeout: 29                     # Must stay under API Gateway's 29s limit
+    MemorySize: 512
+    Tracing: Active
+    PropagateTags: true
+    Environment:
+      Variables:
+        LIFELINK_ENV: !Ref Environment
+        LIFELINK_TABLE_PREFIX: !Sub 'lifelink-${Environment}'
+        # Same parameter that feeds HttpApi.CorsConfiguration.AllowOrigins, so
+        # the edge and the preflight handler in appcore/cors.py cannot drift.
+        CORS_ALLOW_ORIGINS: !Join [',', !Ref CorsAllowOrigins]
+        LOG_LEVEL: INFO
+        POWERTOOLS_SERVICE_NAME: lifelink
+        COGNITO_USER_POOL_ID: !Ref UserPool
+        COGNITO_CLIENT_ID: !Ref UserPoolClient
+        SES_SENDER: !Ref SesSenderAddress
+        WORK_QUEUE_URL: !Ref WorkQueue
+        NOTIFICATION_QUEUE_URL: !Ref NotificationQueue
+  Api:
+    OpenApiVersion: 3.0.1
+
+Resources:
+
+  # ---------------------------------------------------------------------------
+  # Data layer. One table per bounded context (ADR-0001): IAM can then grant a
+  # function access to its own domain only, which makes organization isolation
+  # a platform guarantee rather than a code-review convention.
+  # ---------------------------------------------------------------------------
+
+  OrganizationsTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-organizations'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-status
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Identity }
+
+  FacilitiesTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-facilities'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+        - { AttributeName: GSI2PK, AttributeType: S }
+        - { AttributeName: GSI2SK, AttributeType: S }
+        - { AttributeName: GSI3PK, AttributeType: S }
+        - { AttributeName: GSI3SK, AttributeType: S }
+        - { AttributeName: GSI4PK, AttributeType: S }
+        - { AttributeName: GSI4SK, AttributeType: S }
+        - { AttributeName: GSI5PK, AttributeType: S }
+        - { AttributeName: GSI5SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        # Three geohash precisions, one per search-radius tier. Without the
+        # precision-4 index a 100 km search needs over 2,000 cell queries.
+        - IndexName: GSI1-geo5
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI2-geo6
+          KeySchema:
+            - { AttributeName: GSI2PK, KeyType: HASH }
+            - { AttributeName: GSI2SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI3-org
+          KeySchema:
+            - { AttributeName: GSI3PK, KeyType: HASH }
+            - { AttributeName: GSI3SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI4-verification
+          KeySchema:
+            - { AttributeName: GSI4PK, KeyType: HASH }
+            - { AttributeName: GSI4SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI5-geo4
+          KeySchema:
+            - { AttributeName: GSI5PK, KeyType: HASH }
+            - { AttributeName: GSI5SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Feature2Location }
+
+  InventoryTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-inventory'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+        - { AttributeName: GSI2PK, AttributeType: S }
+        - { AttributeName: GSI2SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        # Sort key is STATUS#<status>#<expiry>, so one range condition selects
+        # available, unexpired stock without a filter expression. Expired and
+        # quarantined rows sort elsewhere and are never read as eligible.
+        - IndexName: GSI1-group-component
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              [batchId, availableUnits, lastUpdatedAt, lastVerifiedAt, status,
+               expiresAt, organizationId]
+        # Sharded so the expiry sweep cannot create a hot partition.
+        - IndexName: GSI2-expiry
+          KeySchema:
+            - { AttributeName: GSI2PK, KeyType: HASH }
+            - { AttributeName: GSI2SK, KeyType: RANGE }
+          Projection: { ProjectionType: KEYS_ONLY }
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Feature1Inventory }
+
+  AlertsTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-alerts'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification: { SSEEnabled: true }
+      TimeToLiveSpecification: { AttributeName: expiresAtEpoch, Enabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+        - { AttributeName: GSI2PK, AttributeType: S }
+        - { AttributeName: GSI2SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-user
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        # Reverse index: "stock arrived here -- who was waiting?" becomes a
+        # bounded query instead of a scan over every open alert.
+        - IndexName: GSI2-match
+          KeySchema:
+            - { AttributeName: GSI2PK, KeyType: HASH }
+            - { AttributeName: GSI2SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Feature1Alerts }
+
+  # Temporary blood reservations (additive capability; see
+  # backend/src/domain/reservations.py). A dedicated table rather than extra
+  # item types in the inventory table: the inventory indexes use INCLUDE
+  # projections tuned for availability queries, and widening them to carry
+  # reservation attributes would make every availability query read more than
+  # it needs. On-demand billing, so an unused table costs nothing.
+  ReservationsTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-reservations'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification: { SSEEnabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      # TTL is cleanup only, never the release mechanism: it fires on a
+      # best-effort basis within roughly 48 hours, and units must stop being
+      # held the moment a hold expires. Release is driven by the maintenance
+      # sweep and by effective_status() at read time. The TTL is set well past
+      # expiry so a released row survives long enough to be auditable.
+      TimeToLiveSpecification: { AttributeName: purgeAtEpoch, Enabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+        - { AttributeName: GSI2PK, AttributeType: S }
+        - { AttributeName: GSI2SK, AttributeType: S }
+      KeySchema:
+        # PK = FACILITY#<id>, SK = RES#<group>#<component>#<reservationId>, so
+        # "what is held for this group and component here?" is one bounded
+        # query on a key condition -- the read the availability path makes.
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        # "My reservations", for the requester's own view.
+        - IndexName: GSI1-requester
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        # Holds due for expiry, sharded by status so the sweep never scans.
+        - IndexName: GSI2-expiry
+          KeySchema:
+            - { AttributeName: GSI2PK, KeyType: HASH }
+            - { AttributeName: GSI2SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Feature1Reservations }
+
+  CampsTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-camps'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+        - { AttributeName: GSI2PK, AttributeType: S }
+        - { AttributeName: GSI2SK, AttributeType: S }
+        - { AttributeName: GSI3PK, AttributeType: S }
+        - { AttributeName: GSI3SK, AttributeType: S }
+        - { AttributeName: GSI4PK, AttributeType: S }
+        - { AttributeName: GSI4SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-geo
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI2-user
+          KeySchema:
+            - { AttributeName: GSI2PK, KeyType: HASH }
+            - { AttributeName: GSI2SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI3-organizer
+          KeySchema:
+            - { AttributeName: GSI3PK, KeyType: HASH }
+            - { AttributeName: GSI3SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI4-reminder
+          KeySchema:
+            - { AttributeName: GSI4PK, KeyType: HASH }
+            - { AttributeName: GSI4SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Feature3Camps }
+
+  DonationsTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-donations'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-camp
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Feature3Donations }
+
+  EmergencyTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-emergency'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      SSESpecification: { SSEEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+        - { AttributeName: GSI2PK, AttributeType: S }
+        - { AttributeName: GSI2SK, AttributeType: S }
+        - { AttributeName: GSI3PK, AttributeType: S }
+        - { AttributeName: GSI3SK, AttributeType: S }
+        - { AttributeName: GSI4PK, AttributeType: S }
+        - { AttributeName: GSI4SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        # Sorting on effectivePriority#createdAt gives the dispatcher
+        # priority-then-FIFO order for free; priority aging re-sorts an item by
+        # rewriting that one attribute.
+        - IndexName: GSI1-dispatch
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI2-requester
+          KeySchema:
+            - { AttributeName: GSI2PK, KeyType: HASH }
+            - { AttributeName: GSI2SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI3-provider
+          KeySchema:
+            - { AttributeName: GSI3PK, KeyType: HASH }
+            - { AttributeName: GSI3SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: GSI4-deadline
+          KeySchema:
+            - { AttributeName: GSI4PK, KeyType: HASH }
+            - { AttributeName: GSI4SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Feature4Emergency }
+
+  NotificationsTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-notifications'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification: { SSEEnabled: true }
+      TimeToLiveSpecification: { AttributeName: expiresAtEpoch, Enabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-status
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Notifications }
+
+  AuditTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    # Audit history is retained in every environment, including dev.
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-audit'
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      # AWS-managed key (alias/aws/dynamodb), chosen deliberately over a
+      # customer-managed key to avoid a $1.00/month fixed charge. The trade is
+      # real and recorded in SECURITY.md: an AWS-managed key cannot carry its
+      # own key policy, so the audit table loses the second, KMS-level barrier
+      # against an account administrator. The application-level protection is
+      # unchanged -- the Lambda role still holds only PutItem and Query.
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: alias/aws/dynamodb
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-actor
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Audit }
+
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-idempotency'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification: { SSEEnabled: true }
+      # TTL-bound and fully reconstructible, so PITR would be wasted spend.
+      TimeToLiveSpecification: { AttributeName: expiresAtEpoch, Enabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Platform }
+
+  OutboxTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub 'lifelink-${Environment}-outbox'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification: { SSEEnabled: true }
+      TimeToLiveSpecification: { AttributeName: expiresAtEpoch, Enabled: true }
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+        - { AttributeName: GSI1SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-pending
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: GSI1SK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      Tags:
+        - { Key: Application, Value: LifeLink }
+        - { Key: Domain, Value: Platform }
+
+  # ---------------------------------------------------------------------------
+  # Encryption and secrets
+  # ---------------------------------------------------------------------------
+
+  ProviderApiSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'lifelink/${Environment}/provider-api-keys'
+      Description: >
+        Credentials for external institutional inventory feeds and any
+        secondary routing provider. Never exposed to the browser.
+      SecretString: '{"placeholder":"replace-after-deployment"}'
+
+  # ---------------------------------------------------------------------------
+  # Identity
+  # ---------------------------------------------------------------------------
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      UserPoolName: !Sub 'lifelink-${Environment}'
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      MfaConfiguration: OPTIONAL          # Required for privileged roles by policy
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - { Name: verified_email, Priority: 1 }
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 3
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate: [email]
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      Schema:
+        - { Name: email, AttributeDataType: String, Required: true, Mutable: true }
+        - { Name: name, AttributeDataType: String, Required: false, Mutable: true }
+      UserPoolTags:
+        Application: LifeLink
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub 'lifelink-${Environment}-web'
+      UserPoolId: !Ref UserPool
+      # No client secret: a browser cannot keep one. PKCE covers the exchange.
+      GenerateSecret: false
+      AllowedOAuthFlows: [code]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes: [openid, email, profile]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs: [!Ref CallbackUrl]
+      LogoutURLs: [!Ref LogoutUrl]
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      # SRP is the only browser-facing flow. ADMIN_USER_PASSWORD_AUTH is added
+      # outside production so that a demonstration can obtain a *real* Cognito
+      # token from a script, exercising the genuine CognitoTokenVerifier path
+      # rather than a substitute. It is an admin API guarded by IAM, not a
+      # browser flow, and it is deliberately absent in production, where an
+      # operator able to exchange a password for a token server-side would be a
+      # standing risk with no demonstration benefit.
+      ExplicitAuthFlows: !If
+        - IsProduction
+        - [ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+        - [ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH, ALLOW_ADMIN_USER_PASSWORD_AUTH]
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref CognitoDomainPrefix
+      UserPoolId: !Ref UserPool
+
+  # Identity pool: gives the browser scoped, temporary credentials to fetch map
+  # tiles directly from Amazon Location, so no provider key reaches the client.
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub 'lifelink_${Environment}_identity'
+      AllowUnauthenticatedIdentities: true   # Map tiles for anonymous visitors
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+          ServerSideTokenCheck: true
+
+  MapReaderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Federated: cognito-identity.amazonaws.com }
+            Action: 'sts:AssumeRoleWithWebIdentity'
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref IdentityPool
+      Policies:
+        - PolicyName: ReadMapTilesOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                # Tile reads only -- no place search, no routing, no writes.
+                Action: ['geo:GetMapTile', 'geo:GetMapStyleDescriptor',
+                         'geo:GetMapSprites', 'geo:GetMapGlyphs']
+                Resource: !If
+                  - CreateLocation
+                  - !GetAtt LocationMap.Arn
+                  - !Sub 'arn:aws:geo:${AWS::Region}:${AWS::AccountId}:map/*'
+
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt MapReaderRole.Arn
+        unauthenticated: !GetAtt MapReaderRole.Arn
+
+  # ---------------------------------------------------------------------------
+  # Messaging. Every queue has a dead-letter queue, and every DLQ is alarmed.
+  # ---------------------------------------------------------------------------
+
+  WorkQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'lifelink-${Environment}-work'
+      # Six times the consumer timeout, per AWS guidance.
+      VisibilityTimeout: 180
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WorkDlq.Arn
+        maxReceiveCount: 5
+
+  WorkDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'lifelink-${Environment}-work-dlq'
+      MessageRetentionPeriod: 1209600   # 14 days, the maximum
+      SqsManagedSseEnabled: true
+
+  NotificationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'lifelink-${Environment}-notifications'
+      VisibilityTimeout: 180
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt NotificationDlq.Arn
+        maxReceiveCount: 5
+
+  NotificationDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'lifelink-${Environment}-notifications-dlq'
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  # ---------------------------------------------------------------------------
+  # Amazon Location Service (Feature 2)
+  # ---------------------------------------------------------------------------
+
+  LocationMap:
+    Type: AWS::Location::Map
+    Condition: CreateLocation
+    Properties:
+      MapName: !Sub 'lifelink-${Environment}-map'
+      Configuration:
+        Style: VectorEsriNavigation
+      PricingPlan: RequestBasedUsage
+      Description: Map tiles for LifeLink. MapLibre renders; this supplies tiles.
+
+  # NOTE: an AWS::Location::APIKey was attempted here and is BLOCKED on this
+  # account: CloudFormation returned "Access denied for operation
+  # 'AWS::Location::APIKey'" and rolled the stack back. The managed service
+  # control policy on this account type does not permit Location API keys.
+  #
+  # That key would have let MapLibre fetch tiles directly with a
+  # map-reads-only credential. Without it the remaining option is SigV4
+  # signing in the browser via the Cognito identity pool, which needs the AWS
+  # SDK and an auth helper in the bundle. See docs/KNOWN_LIMITATIONS.md; the
+  # map renders its facility-list fallback until then.
+
+  LocationPlaceIndex:
+    Type: AWS::Location::PlaceIndex
+    Condition: CreateLocation
+    Properties:
+      IndexName: !Sub 'lifelink-${Environment}-places'
+      DataSource: Esri
+      PricingPlan: RequestBasedUsage
+      DataSourceConfiguration:
+        # Results are not stored, which keeps data minimisation simple.
+        IntendedUse: SingleUse
+
+  LocationRouteCalculator:
+    Type: AWS::Location::RouteCalculator
+    Condition: CreateLocation
+    Properties:
+      CalculatorName: !Sub 'lifelink-${Environment}-routes'
+      DataSource: Esri
+      PricingPlan: RequestBasedUsage
+
+  # ---------------------------------------------------------------------------
+  # Compute
+  # ---------------------------------------------------------------------------
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lifelink-${Environment}-api'
+      CodeUri: ../build/lambda/
+      Handler: handlers.api.lambda_handler
+      Description: LifeLink REST API. All 50 routes behind one handler.
+      Environment:
+        Variables:
+          LOCATION_PLACE_INDEX: !If [CreateLocation, !Ref LocationPlaceIndex, '']
+          LOCATION_ROUTE_CALCULATOR: !If [CreateLocation, !Ref LocationRouteCalculator, '']
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref OrganizationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref FacilitiesTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref InventoryTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref AlertsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref ReservationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref CampsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref DonationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref EmergencyTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref NotificationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref IdempotencyTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref OutboxTable }
+        # Audit is WRITE-ONLY on purpose: no UpdateItem, no DeleteItem, so the
+        # application physically cannot rewrite history (spec 8.4).
+        - Statement:
+            - Effect: Allow
+              Action: ['dynamodb:PutItem', 'dynamodb:Query']
+              Resource:
+                - !GetAtt AuditTable.Arn
+                - !Sub '${AuditTable.Arn}/index/*'
+            - Effect: Allow
+              Action: ['kms:GenerateDataKey', 'kms:Decrypt']
+              # The AWS-managed key's id is not known at deploy time, so the
+              # grant is scoped by condition instead of by ARN: these actions
+              # are usable only when DynamoDB makes the request on our behalf,
+              # never directly.
+              Resource: '*'
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub 'dynamodb.${AWS::Region}.amazonaws.com'
+        - SQSSendMessagePolicy: { QueueName: !GetAtt WorkQueue.QueueName }
+        - SQSSendMessagePolicy: { QueueName: !GetAtt NotificationQueue.QueueName }
+        - Statement:
+            - Effect: Allow
+              Action: ['geo:SearchPlaceIndexForText', 'geo:SearchPlaceIndexForPosition',
+                       'geo:CalculateRoute']
+              Resource: !If
+                - CreateLocation
+                - [!GetAtt LocationPlaceIndex.Arn, !GetAtt LocationRouteCalculator.Arn]
+                - [!Sub 'arn:aws:geo:${AWS::Region}:${AWS::AccountId}:place-index/*',
+                   !Sub 'arn:aws:geo:${AWS::Region}:${AWS::AccountId}:route-calculator/*']
+        - Statement:
+            - Effect: Allow
+              Action: ['cognito-idp:AdminGetUser', 'cognito-idp:ListUsers']
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: ANY
+
+  NotificationWorker:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lifelink-${Environment}-notification-worker'
+      CodeUri: ../build/lambda/
+      Handler: handlers.workers.notification_handler
+      Description: Drains the notification queue. Idempotent per event id.
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref NotificationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref IdempotencyTable }
+        - DynamoDBReadPolicy: { TableName: !Ref OrganizationsTable }
+        - !If
+          - HasSesSender
+          - Statement:
+              - Effect: Allow
+                Action: ['ses:SendEmail']
+                Resource: '*'
+                Condition:
+                  StringEquals: { 'ses:FromAddress': !Ref SesSenderAddress }
+          - !Ref 'AWS::NoValue'
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt NotificationQueue.Arn
+            # Small batch and bounded concurrency: the account's Lambda ceiling
+            # is 10 in total, so a worker must leave room for the API tier.
+            BatchSize: 5
+            MaximumBatchingWindowInSeconds: 10
+            ScalingConfig:
+              MaximumConcurrency: 2
+            FunctionResponseTypes: [ReportBatchItemFailures]
+
+  WorkQueueWorker:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lifelink-${Environment}-work-worker'
+      CodeUri: ../build/lambda/
+      Handler: handlers.workers.work_handler
+      Description: Alert matching and inventory ingestion follow-up.
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref AlertsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref ReservationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref IdempotencyTable }
+        - DynamoDBReadPolicy: { TableName: !Ref InventoryTable }
+        - DynamoDBReadPolicy: { TableName: !Ref FacilitiesTable }
+        - DynamoDBReadPolicy: { TableName: !Ref OrganizationsTable }
+        - SQSSendMessagePolicy: { QueueName: !GetAtt NotificationQueue.QueueName }
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WorkQueue.Arn
+            BatchSize: 5
+            MaximumBatchingWindowInSeconds: 10
+            ScalingConfig:
+              MaximumConcurrency: 2
+            FunctionResponseTypes: [ReportBatchItemFailures]
+
+  OutboxPublisher:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lifelink-${Environment}-outbox-publisher'
+      CodeUri: ../build/lambda/
+      Handler: handlers.workers.outbox_handler
+      Description: >
+        Streams outbox rows to SQS. The outbox row is written in the same
+        transaction as its domain change, so a crash cannot lose the event.
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref OutboxTable }
+        - SQSSendMessagePolicy: { QueueName: !GetAtt WorkQueue.QueueName }
+        - SQSSendMessagePolicy: { QueueName: !GetAtt NotificationQueue.QueueName }
+        # Required by the event source mapping's OnFailure destination below.
+        # Lambda validates this grant when it creates the mapping and refuses
+        # outright without it, which is how the first deployment failed:
+        # "The function execution role does not have permissions to call
+        # SendMessage on SQS". Neither cfn-lint nor sam validate can see this --
+        # it is a cross-resource consistency rule only the service enforces.
+        - SQSSendMessagePolicy: { QueueName: !GetAtt WorkDlq.QueueName }
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt OutboxTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+            MaximumRetryAttempts: 3
+            BisectBatchOnFunctionError: true
+            FunctionResponseTypes: [ReportBatchItemFailures]
+            DestinationConfig:
+              OnFailure:
+                Destination: !GetAtt WorkDlq.Arn
+
+  PriorityDispatcher:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lifelink-${Environment}-dispatcher'
+      CodeUri: ../build/lambda/
+      Handler: handlers.workers.dispatcher_handler
+      Description: >
+        Application-level priority dispatcher with aging-based fairness. Three
+        SQS queues would NOT guarantee priority ordering, so scheduling is done
+        here instead. Clinical priority is never modified.
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref EmergencyTable }
+        - DynamoDBReadPolicy: { TableName: !Ref InventoryTable }
+        - DynamoDBReadPolicy: { TableName: !Ref FacilitiesTable }
+        - DynamoDBReadPolicy: { TableName: !Ref OrganizationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref NotificationsTable }
+        - SQSSendMessagePolicy: { QueueName: !GetAtt NotificationQueue.QueueName }
+      Events:
+        EveryMinute:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: 'rate(1 minute)'
+            Description: Dispatch pending emergency requests in priority order.
+
+  ScheduledMaintenance:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lifelink-${Environment}-maintenance'
+      CodeUri: ../build/lambda/
+      Handler: handlers.workers.maintenance_handler
+      Description: Expiry sweep, camp status transitions, camp reminders.
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref InventoryTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref CampsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref AlertsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref ReservationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref EmergencyTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref NotificationsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref FacilitiesTable }
+        - DynamoDBReadPolicy: { TableName: !Ref OrganizationsTable }
+        - Statement:
+            - Effect: Allow
+              Action: ['dynamodb:PutItem']
+              Resource: !GetAtt AuditTable.Arn
+            - Effect: Allow
+              Action: ['kms:GenerateDataKey', 'kms:Decrypt']
+              # The AWS-managed key's id is not known at deploy time, so the
+              # grant is scoped by condition instead of by ARN: these actions
+              # are usable only when DynamoDB makes the request on our behalf,
+              # never directly.
+              Resource: '*'
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub 'dynamodb.${AWS::Region}.amazonaws.com'
+        - SQSSendMessagePolicy: { QueueName: !GetAtt NotificationQueue.QueueName }
+      Events:
+        EveryTenMinutes:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: 'rate(10 minutes)'
+
+  # ---------------------------------------------------------------------------
+  # API
+  # ---------------------------------------------------------------------------
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      Description: >
+        HTTP API rather than REST API: lower cost and lower latency, and
+        LifeLink needs none of the REST-only features. Authorization is
+        performed in the application, which can also check account status and
+        resource ownership -- things a JWT authorizer cannot see.
+      # CORS previously read AllowOrigins from LogoutUrl, which was wrong twice
+      # over and broke every browser request to the deployed API:
+      #
+      #   1. LogoutUrl is an OAuth redirect target, not a browser origin. Its
+      #      default is http://localhost:5173/, so the deployed API allowed
+      #      only localhost and refused the CloudFront origin. Direct GETs in
+      #      the address bar worked (no Origin header, so no CORS check), which
+      #      made the API look healthy while every fetch() failed on preflight.
+      #   2. An Origin header never carries a path or a trailing slash. A value
+      #      of "http://localhost:5173/" could not have matched any origin,
+      #      ever, in any environment.
+      #
+      # Origins are now their own parameter, and the two concerns are no longer
+      # coupled. AllowCredentials is deliberately NOT set: LifeLink
+      # authenticates with a bearer token, not cookies, so credentialed CORS is
+      # unnecessary -- and enabling it would forbid the explicit-origin list
+      # from ever being widened to a wildcard by accident.
+      CorsConfiguration:
+        AllowOrigins: !Ref CorsAllowOrigins
+        AllowHeaders: [Content-Type, Authorization, Idempotency-Key, X-Correlation-Id]
+        AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+        ExposeHeaders: [X-Correlation-Id]
+        MaxAge: 600
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        # Deliberately excludes request bodies and query strings, which can
+        # carry personal data (spec 8.3).
+        Format: >
+          {"requestId":"$context.requestId","ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime","method":"$context.httpMethod",
+          "routeKey":"$context.routeKey","status":"$context.status",
+          "latency":"$context.responseLatency","integrationError":"$context.integrationErrorMessage"}
+      DefaultRouteSettings:
+        DetailedMetricsEnabled: true
+        # Below the account's Lambda ceiling of 10, so API Gateway sheds load
+        # before Lambda starts throttling.
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  # ---------------------------------------------------------------------------
+  # Frontend hosting
+  # ---------------------------------------------------------------------------
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      BucketName: !Sub 'lifelink-${Environment}-frontend-${AWS::AccountId}'
+      # Private: CloudFront reaches it through Origin Access Control.
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      VersioningConfiguration: { Status: Enabled }
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+
+  UploadsBucket:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      BucketName: !Sub 'lifelink-${Environment}-uploads-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      VersioningConfiguration: { Status: Enabled }
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload: { DaysAfterInitiation: 7 }
+
+  FrontendOac:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub 'lifelink-${Environment}-frontend-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: 's3:GetObject'
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}'
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'LifeLink ${Environment} frontend'
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: FrontendS3
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt FrontendOac.Id
+            S3OriginConfig: { OriginAccessIdentity: '' }
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendS3
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          # AWS managed policies: CachingOptimized and SecurityHeadersPolicy.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+        CustomErrorResponses:
+          # Single-page app: client-side routing needs index.html for deep links.
+          - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html,
+              ErrorCachingMinTTL: 10 }
+          - { ErrorCode: 404, ResponseCode: 200, ResponsePagePath: /index.html,
+              ErrorCachingMinTTL: 10 }
+
+  # ---------------------------------------------------------------------------
+  # Observability. Alarms are chosen to be actionable; a dashboard with no
+  # alarm behind it tells an operator nothing at 3am.
+  # ---------------------------------------------------------------------------
+
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigateway/lifelink-${Environment}'
+      RetentionInDays: !Ref LogRetentionDays
+
+  ApiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/lifelink-${Environment}-api'
+      RetentionInDays: !Ref LogRetentionDays
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'lifelink-${Environment}-alarms'
+      DisplayName: LifeLink operational alarms
+
+  WorkDlqNotEmptyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-work-dlq-not-empty'
+      AlarmDescription: >
+        A message reached the work dead-letter queue. Something failed five
+        times. Investigate before redriving.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - { Name: QueueName, Value: !GetAtt WorkDlq.QueueName }
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  NotificationDlqNotEmptyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-notification-dlq-not-empty'
+      AlarmDescription: Notifications are failing permanently; users are not being told.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - { Name: QueueName, Value: !GetAtt NotificationDlq.QueueName }
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  QueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-work-queue-age'
+      AlarmDescription: >
+        The oldest unprocessed message is over 5 minutes old. At a concurrency
+        ceiling of 10 this is the first sign of a backlog.
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - { Name: QueueName, Value: !GetAtt WorkQueue.QueueName }
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 300
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  ApiErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-api-errors'
+      AlarmDescription: The API function is raising unhandled errors.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref ApiFunction }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  LambdaThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-lambda-throttles'
+      AlarmDescription: >
+        Lambda is throttling. The account ceiling is 10 concurrent executions,
+        so this is expected under load and is the signal to request an increase.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref ApiFunction }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  ApiLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-api-latency-p95'
+      AlarmDescription: p95 API latency above 3 seconds.
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref ApiFunction }
+      ExtendedStatistic: p95
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  DynamoThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-inventory-throttles'
+      AlarmDescription: DynamoDB is throttling inventory requests.
+      Namespace: AWS/DynamoDB
+      MetricName: ThrottledRequests
+      Dimensions:
+        - { Name: TableName, Value: !Ref InventoryTable }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  DispatcherFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'lifelink-${Environment}-dispatcher-failure'
+      AlarmDescription: >
+        The priority dispatcher is failing. Emergency requests stop being
+        matched, which is the most serious failure in the system.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref PriorityDispatcher }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  OperationalDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub 'LifeLink-${Environment}'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric", "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "API invocations, errors and throttles",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${ApiFunction}"],
+                  [".", "Errors", ".", "."],
+                  [".", "Throttles", ".", "."]
+                ],
+                "period": 300, "stat": "Sum", "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "API latency (p50 / p95 / p99)",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${ApiFunction}", {"stat": "p50"}],
+                  ["...", {"stat": "p95"}],
+                  ["...", {"stat": "p99"}]
+                ],
+                "period": 300, "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "Queue depth and oldest message age",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${WorkQueue.QueueName}"],
+                  [".", "ApproximateAgeOfOldestMessage", ".", "."],
+                  [".", "ApproximateNumberOfMessagesVisible", "QueueName", "${WorkDlq.QueueName}"]
+                ],
+                "period": 300, "stat": "Maximum", "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "DynamoDB consumed capacity and throttles",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${InventoryTable}"],
+                  [".", "ConsumedWriteCapacityUnits", ".", "."],
+                  [".", "ThrottledRequests", ".", "."]
+                ],
+                "period": 300, "stat": "Sum", "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 12, "width": 24, "height": 6,
+              "properties": {
+                "title": "Background workers",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/Lambda", "Errors", "FunctionName", "${PriorityDispatcher}"],
+                  [".", "Errors", "FunctionName", "${NotificationWorker}"],
+                  [".", "Errors", "FunctionName", "${OutboxPublisher}"],
+                  [".", "Errors", "FunctionName", "${ScheduledMaintenance}"]
+                ],
+                "period": 300, "stat": "Sum", "view": "timeSeries"
+              }
+            }
+          ]
+        }
+
+  CloudTrailBucket:
+    Type: AWS::S3::Bucket
+    Condition: IsProduction
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub 'lifelink-${Environment}-cloudtrail-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireTrailLogs
+            Status: Enabled
+            ExpirationInDays: 365
+
+Outputs:
+  ApiEndpoint:
+    Description: Base URL of the LifeLink API
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export: { Name: !Sub 'lifelink-${Environment}-api-endpoint' }
+
+  FrontendUrl:
+    Description: CloudFront URL for the web application
+    Value: !Sub 'https://${FrontendDistribution.DomainName}'
+
+  FrontendBucketName:
+    Description: S3 bucket to sync the built frontend into
+    Value: !Ref FrontendBucket
+
+  UserPoolId:
+    Description: Cognito user pool id
+    Value: !Ref UserPool
+    Export: { Name: !Sub 'lifelink-${Environment}-user-pool-id' }
+
+  UserPoolClientId:
+    Description: Cognito app client id for the browser application
+    Value: !Ref UserPoolClient
+
+  CognitoLoginUrl:
+    Description: Managed login URL
+    Value: !Sub 'https://${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=code&scope=openid+email+profile&redirect_uri=${CallbackUrl}'
+
+  IdentityPoolId:
+    Description: Identity pool used by the browser to fetch map tiles
+    Value: !Ref IdentityPool
+
+  MapName:
+    Condition: CreateLocation
+    Description: Amazon Location map resource
+    Value: !Ref LocationMap
+
+  AlarmTopicArn:
+    Description: Subscribe an email address here to receive operational alarms
+    Value: !Ref AlarmTopic
+
+  DeployedRegion:
+    Description: Region this stack was deployed into
+    Value: !Ref 'AWS::Region'
