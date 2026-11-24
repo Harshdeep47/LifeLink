@@ -230,7 +230,8 @@ Lifecycle: `PENDING_APPROVAL → UPCOMING → ONGOING → COMPLETED`, with `CANC
 |---|---|
 | `META` | Request: group, component, units, location, `requiredBy`, `clinicalPriority`, `effectivePriority`, `status`, `hospitalVerificationState` |
 | `RESPONSE#<oid>` | Provider response: `ACCEPTED REJECTED INSUFFICIENT_STOCK NEEDS_CLARIFICATION`, `unitsOffered`, `respondedAt` |
-| `EVENT#<ts>#<id>` | Lifecycle transition with actor and reason (§6.8 audit trail) |
+| `EVENT#<ts>#<uuid8>` | Lifecycle transition with actor and reason (§6.8 audit trail), written by `append_event`. Append-only: the uuid suffix keeps two events at the same instant distinct |
+| `EVENT#<nnnn>#seed0001` | A **synthetic** seeded event. The ordinal is deterministic so re-seeding overwrites rather than accumulates, and it sorts before any ISO timestamp so a seeded creation event stays first in the timeline. `occurredAt` still carries a realistic time, and that is what the API returns. See [KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md) §1.19 |
 
 `clinicalPriority` is immutable except via the certification endpoint, which requires `HOSPITAL_AUTHORIZER` and writes an audit record. `effectivePriority` is scheduler-owned and freely rewritten ([ADR-0006](ARCHITECTURE_DECISIONS.md#adr-0006)).
 

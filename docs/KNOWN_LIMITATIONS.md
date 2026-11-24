@@ -274,38 +274,116 @@ library rests on component tests under jsdom plus string checks against the
 live bundle. Twelve manual checks are listed in
 [REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md) §6.
 
-### 1.19 Re-seeding duplicates emergency request timeline events
+### 1.19 Re-seeding duplicated request timeline events — RESOLVED
 
-`seed_cloud.py` documents itself as idempotent — "a second run rewrites the
-same items rather than adding more" — and that holds for every record type
-**except** `REQUEST_EVENT`. Those rows use a sort key of
-`EVENT#<occurredAt>#seed0001`, and `occurredAt` derives from the seed run's
-clock, so each run writes a **new** key instead of overwriting the old one.
+**Fixed and applied on 24 November 2026.** Kept here because the mechanism is
+instructive and because §1.20 below is its residue.
 
-The table has been seeded five times, so `demo-req-p1-1` now carries five
-`REQUEST_CREATED` events dated 14 November, 15 November (×3) and 24 November.
-This is **user-visible**: `GET /emergency-requests/{id}` returns all of them
-and `RequestTrackingPage` renders the timeline as an ordered list, so the
-emergency tracking page shows "REQUEST CREATED" five times.
+**What went wrong.** The seeder wrote request events with the sort key
+`EVENT#<iso-now>#seed0001`. The `seed0001` suffix was fixed but the timestamp
+came from the run clock, so each seed run created a *new* sort key for the same
+logical event rather than overwriting it. `seed_cloud.py` promises in its own
+docstring that "a second run rewrites the same items rather than adding more";
+that held for every record type except this one, and nothing tested it.
 
-Functionally harmless — the lifecycle state is held on the request itself, not
-derived from the events — but it looks like a bug during a demonstration, and
-it will grow by one entry per request on every future seed run.
+Five runs left each of the ten demo requests carrying five `REQUEST_CREATED`
+events. It was user-visible: `emergency_repo.load_full_request` sorts events by
+**sort key** and `RequestTrackingPage` renders every entry, so the emergency
+tracking page showed "REQUEST CREATED" five times.
 
-Two candidate fixes, neither applied:
+**The fix.** `seed_demo.seed_event_sk()` returns a deterministic
+`EVENT#0000#seed0001`. Three properties, each load-bearing:
 
-1. **Make the event sort key deterministic** (for example
-   `EVENT#<index>#seed0001`, or derive the timestamp from a fixed base rather
-   than `now`). This makes re-seeding genuinely idempotent for events, which is
-   what the docstring already promises. It changes the seeder, so it needs a
-   backend-free code review and nothing else.
-2. **A narrow cleanup** in the style of
-   `scripts/reconcile_showcase_batches.py`: delete `REQUEST_EVENT` rows on
-   `demo-req-*` requests that duplicate an earlier event of the same type,
-   dry-run by default. Removes the existing duplicates but does not stop them
-   recurring.
+* **Deterministic** — the same request always yields the same key, so a
+  re-seed overwrites.
+* **Still ordered first** — sorting is lexicographic on the whole sort key, and
+  `"0"` precedes the first character of any ISO year, so a seeded creation
+  event stays ahead of genuine events appended later. That is the correct
+  order: the seeded event *is* the request's creation.
+* **Displayed time unaffected** — `occurredAt` keeps its realistic,
+  now-relative value, and that attribute is what the API returns and the
+  interface shows. Only the key is synthetic.
 
-Doing (1) then (2) fixes both the cause and the residue.
+**Deliberately not changed.** `emergency_repo.append_event`, the application's
+own writer, still uses `EVENT#<iso-now>#<uuid8>`. Real history is append-only:
+two genuine events at the same instant must both survive, and making that
+writer deterministic would have been a far worse defect than the duplication
+it replaced. Four tests pin it, and the live dispatcher demonstrated it by
+appending two genuine events during the cleanup itself.
+
+**Applied to the deployed stack**, in this order, which converges in one pass:
+
+1. Re-ran the fixed seeder — emergency rows 97 → 107, writing one canonical
+   `EVENT#0000#seed0001` per request.
+2. Ran `scripts/dedupe_request_events.py --apply` — removed **50** duplicate
+   rows, keeping the canonical one for each of the ten requests.
+
+Cleanup-first would have been wrong: it keeps the earliest old-format row, which
+the next seed would then duplicate again.
+
+Result, verified against the deployed table and through the API:
+
+| | Before | After |
+|---|---|---|
+| `REQUEST_EVENT` rows | 83 | **35** |
+| — seeded | 60 | **10** (one per request, all `EVENT#0000#seed0001`) |
+| — genuine | 23 | 25 (grew: the live dispatcher appended two) |
+| `REQUEST_CREATED` per request | 5 | **1** |
+| Request records / provider responses | 11 / 13 | 11 / 13 — untouched |
+
+Reservations were untouched throughout: 9 rows, every pool counter `0`.
+
+**Tests.** 47, of which five fail against the pre-fix key — verified by
+reverting it. `backend/tests/integration/test_seed_idempotency.py` (17) and
+`backend/tests/unit/test_dedupe_request_events.py` (30).
+
+**Still not browser-verified.** The API now returns one creation entry per
+request; nobody has watched the page render it.
+
+### 1.20 Demo requests accumulate genuine lifecycle events across seed cycles
+
+Discovered while verifying §1.19, and distinct from it. This is **not** a code
+defect and the rows involved **must not** be deleted.
+
+Demo emergency requests are seeded with now-relative deadlines in dispatchable
+states. The live scheduled workers then do exactly what they should: the
+dispatcher (every minute) transitions them, and the maintenance sweep (every
+ten minutes) expires them, each appending a **genuine** `TRANSITION_*` event.
+Re-seeding revives the request into a dispatchable state again, so the next
+cycle appends more. Two such events were written within minutes of the
+24 November re-seed.
+
+`demo-req-p2-1` now carries nine genuine events dated between 15 and
+24 November.
+
+Two visible consequences:
+
+1. **Repeated transition types.** Four `TRANSITION_MATCHING_INITIATED` entries
+   on one request, because it was revived and re-dispatched four times.
+2. **Timestamps that read out of order.** The seeded `REQUEST_CREATED` is
+   now-relative and refreshes on every seed, while genuine events keep their
+   real historical stamps. So a timeline can read "created 24 November, expired
+   16 November".
+
+Why it is not fixed:
+
+* The events are **real history** written by the application. Deleting them is
+  explicitly out of scope, and the cleanup script refuses them by design
+  (they carry a uuid suffix and no `demoData` marker).
+* Sorting the timeline by `occurredAt` instead of sort key would be **worse** —
+  it would place the creation event after the transitions, so a request would
+  appear to have been created after it expired.
+* The honest alternative is not to re-seed, which costs the freshness the
+  refresh exists to provide.
+
+**For a demonstration:** pick a request with a short timeline, or explain that
+the demo data is periodically refreshed while real worker history accumulates
+against it. `demo-req-p1-1` currently has two entries; `demo-req-p2-1` has ten.
+
+A proper fix would seed emergency requests in terminal states, or give them
+deadlines far enough out that the workers leave them alone. Both change the
+dataset's demonstration value — several scenarios exist precisely to show
+dispatch and expiry — so it is a dataset design decision rather than a bug fix.
 
 ## 2. Clinical
 

@@ -43,7 +43,7 @@ LifeLink/
 | Area | Modules | Lines |
 |---|---|---|
 | Backend source | 43 | 12806 |
-| Backend tests | 22 files | 5516 |
+| Backend tests | 24 files | 6059 |
 | Frontend source | 60 | 12750 |
 | Infrastructure | 1 template | 1490 |
 
@@ -80,7 +80,7 @@ back up, and `domain` has no outgoing arrows at all.*
 
 The consequence that matters day to day: `domain/` imports nothing from
 `repositories/`, `adapters/` or `boto3`. It can be tested at full speed with no
-mocks and no AWS, which is why 22 test files run in
+mocks and no AWS, which is why 24 test files run in
 seconds.
 
 ## 1.3 Why `appcore` is not called `platform`
@@ -4388,13 +4388,13 @@ is a scan of the largest table in the system.
 
 | Tier | Count | Speed | What it proves |
 |---|---|---|---|
-| Unit | 536 | Under a second | Domain logic is correct in isolation |
-| Integration | 74 | Seconds | The real datastore enforces the invariants |
+| Unit | 566 | Under a second | Domain logic is correct in isolation |
+| Integration | 91 | Seconds | The real datastore enforces the invariants |
 | Frontend | 294 | ~2 seconds | Presentation rules hold |
 
 *Table 23.1. Test suites, measured on the run that produced this book.
-Overall: 610 backend tests, all passing;
-904 including the frontend suite.*
+Overall: 657 backend tests, all passing;
+951 including the frontend suite.*
 
 ## 23.2 Why integration tests exist
 

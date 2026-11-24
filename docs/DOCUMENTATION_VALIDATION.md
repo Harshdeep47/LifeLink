@@ -1,6 +1,6 @@
 # LifeLink — Documentation Validation Report
 
-Generated 2026-11-24 08:45 UTC by `scripts/build_books.py`.
+Generated 2026-11-24 09:56 UTC by `scripts/build_books.py`.
 
 Every figure below was measured by opening the produced PDF, not asserted by the author. A book is reported COMPLETE only when it builds, opens, renders text on every page, keeps its content inside the page, and contains no unresolved build directives.
 
@@ -24,8 +24,8 @@ Counts, sizes and versions below are re-measured on every build; the generation 
 | `aws_region` | ap-southeast-2 |
 | `backend_lines` | 12806 |
 | `backend_modules` | 43 |
-| `backend_test_files` | 22 |
-| `backend_test_lines` | 5516 |
+| `backend_test_files` | 24 |
+| `backend_test_lines` | 6059 |
 | `cfn_alarms` | 8 |
 | `cfn_lines` | 1490 |
 | `cfn_resources` | 59 |
@@ -47,14 +47,14 @@ Counts, sizes and versions below are re-measured on every build; the generation 
 | `sam_version` | 1.172.1 |
 | `ses_mode` | sandbox (200 messages/day, 1 per second, verified recipients only) |
 | `table_count` | 12 |
-| `test_backend` | 610 |
+| `test_backend` | 657 |
 | `test_failed` | 0 |
 | `test_frontend` | 294 |
-| `test_integration` | 74 |
+| `test_integration` | 91 |
 | `test_skipped` | 0 |
 | `test_status` | all passing |
-| `test_total` | 904 |
-| `test_unit` | 536 |
+| `test_total` | 951 |
+| `test_unit` | 566 |
 
 ## Book 1 — System Architecture and AWS Cloud Engineering
 

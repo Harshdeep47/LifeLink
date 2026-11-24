@@ -245,7 +245,7 @@ appears. The system also deliberately makes no clinical decisions.
 `cfn-lint` and `sam validate --lint` with no findings, and nothing has been
 deployed. I have not claimed any production figures.
 
-**"How do you know it works?"** 610 backend tests and
+**"How do you know it works?"** 657 backend tests and
 294 frontend tests, with the end-to-end scenarios named after
 the ten flows the specification requires. The numbers in the documentation are
 produced by running the suites at build time, not typed in.
@@ -2313,8 +2313,8 @@ If a suite fails, the figure in the book says so.
 | DynamoDB tables / indexes | 12 / 24 |
 | API routes | 58 |
 | Permissions / roles | 39 / 10 |
-| Backend tests | 610 |
-| All tests, backend plus frontend | 904 |
+| Backend tests | 657 |
+| All tests, backend plus frontend | 951 |
 | CloudFormation resources / alarms | 59 / 8 |
 | Lambda concurrency ceiling | 10 |
 | Region | ap-southeast-2 |
@@ -2693,7 +2693,7 @@ interviewer finding it.
 
 ## 45.5 Over-claiming test coverage
 
-904 tests passing is a real number. "Fully tested" is not, and
+951 tests passing is a real number. "Fully tested" is not, and
 invites the question "what is not tested?" — to which the honest answer is
 load, restore procedures, Cognito itself and accessibility beyond structure.
 
@@ -2796,7 +2796,7 @@ dependency, cold-start cost and an adapter layer for no capability gained.
 
 It has no I/O and does not read the clock. Every function takes `now` as a
 parameter. The tests pass a fixed instant and assert exact boundaries with no
-patching, which is why 536 unit tests run in under a second.
+patching, which is why 566 unit tests run in under a second.
 
 **P3. How do you keep a Lambda cold start small?**
 
@@ -3346,7 +3346,7 @@ def freshness_label(last_updated_at: datetime | None, now: datetime) -> Freshnes
         return FreshnessLabel.STALE
     return FreshnessLabel.OUTDATED
 ````
-extracts that function from that file at build time. `904`
+extracts that function from that file at build time. `951`
 is replaced by a number produced by running the suite during the build.
 `| Method | Path | Permission |
 |---|---|---|
@@ -3482,7 +3482,7 @@ is worth taking seriously, say this.
 > scheduler reorder work without ever touching a clinical judgement, by making
 > them different fields with different owners.
 >
-> It has 610 backend tests and 294 frontend
+> It has 657 backend tests and 294 frontend
 > tests, and a substantial share of them assert what the system refuses to do.
 > Five real bugs were found by testing against a real datastore rather than a
 > mock, and four of those failed silently.
@@ -3697,8 +3697,8 @@ An interviewer who hears it from you first tends to believe the rest.
 
 ## 57.2 The numbers
 
-610 backend tests (536 unit,
-74 integration), 294 frontend tests,
+657 backend tests (566 unit,
+91 integration), 294 frontend tests,
 all passing. 58 routes,
 58 documented operations.
 12 tables, 24 indexes.
@@ -4258,7 +4258,7 @@ Read this page.
 
 A cloud platform for blood availability, discovery, donation and emergency
 coordination. Seven features. React, Python on Lambda, DynamoDB, in one AWS
-region. 610 backend tests passing. Deployed, with the
+region. 657 backend tests passing. Deployed, with the
 repository ahead of the deployed stack, and the documentation says so.
 
 ## 64.2 The five rules

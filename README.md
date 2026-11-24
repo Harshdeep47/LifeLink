@@ -65,9 +65,9 @@ Measured on 24 November 2026, not estimated.
 
 | Item | Status |
 |---|---|
-| Backend tests | **610 passing** (536 unit, 74 integration) |
+| Backend tests | **657 passing** (566 unit, 91 integration) |
 | Frontend tests | **294 passing** |
-| **Total automated** | **904 passing** |
+| **Total automated** | **951 passing** |
 | Live checks against the deployed API | **56 passing** (19 authentication, 37 workflow) |
 | Backend lint | `ruff check` clean |
 | Frontend lint | `npm run lint` clean (0 errors; 15 `exhaustive-deps` warnings, see below) |
@@ -200,7 +200,7 @@ python scripts/build_books.py --preview  # also render sample page images
 ## Running the checks
 
 ```bash
-cd backend && ../.venv/Scripts/python.exe -m pytest tests     # 610 tests
+cd backend && ../.venv/Scripts/python.exe -m pytest tests     # 657 tests
 cd backend && ../.venv/Scripts/python.exe -m ruff check src tests
 cd frontend && npm test                                        # 294 tests
 cd frontend && npm run build

@@ -114,6 +114,38 @@ def guard_environment() -> None:
         raise SystemExit(2)
 
 
+def seed_event_sk(ordinal: int = 0) -> str:
+    """Sort key for a synthetic request event. Deterministic, by design.
+
+    The application writes genuine events as ``EVENT#<iso-now>#<uuid8>``
+    (``emergency_repo.append_event``), which is right for real history: every
+    occurrence is distinct and must append, never overwrite.
+
+    The seeder used the same shape, and that was the defect. Its timestamp came
+    from the run clock, so each seed run produced a *new* sort key for the same
+    logical event instead of overwriting the old one. Five runs left
+    ``demo-req-p1-1`` with five ``REQUEST_CREATED`` events, and the emergency
+    tracking page rendered all five.
+
+    A zero-padded ordinal fixes it and keeps the timeline correct:
+
+    * **Deterministic** -- the same request always yields the same key, so a
+      re-seed overwrites rather than accumulates.
+    * **Still ordered first.** Sorting is lexicographic on the whole sort key
+      (``emergency_repo.load_full_request``), and ``"0"`` sorts before the
+      first character of any ISO year, so a seeded creation event stays ahead
+      of genuine events the application appends later. That is the right
+      order: the seeded event *is* the request's creation.
+    * **The displayed time is unaffected.** ``occurredAt`` keeps its realistic,
+      now-relative value, and that attribute is what the API returns and the
+      interface shows. Only the key is synthetic.
+
+    The ordinal exists so additional seeded events stay ordered among
+    themselves if any are added later.
+    """
+    return f"EVENT#{ordinal:04d}#seed0001"
+
+
 def iso(dt: datetime) -> str:
     return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
@@ -1021,7 +1053,7 @@ class DemoSeeder:
             self.emergency.put(
                 {
                     "PK": f"REQUEST#{req_id}",
-                    "SK": f"EVENT#{iso(created_at)}#seed0001",
+                    "SK": seed_event_sk(0),
                     "entityType": "REQUEST_EVENT",
                     "eventType": "REQUEST_CREATED",
                     "actorId": "user-hosp-staff-1",

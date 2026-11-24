@@ -129,6 +129,23 @@ and 1 stale `CONFIRMED` row that holds nothing
 ([KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md) §1.15). **Every pool counter is
 zero** — nothing is held.
 
+### Follow-up on 24 November 2026: duplicate event cleanup
+
+After the deployments above, verification found that the seeder had been
+creating a new `REQUEST_EVENT` row per run instead of overwriting one, because
+its sort key embedded the run clock. Five runs had left each demo request with
+five `REQUEST_CREATED` events, which the emergency tracking page rendered.
+
+Fixed in `seed_demo.seed_event_sk()`, then applied to the stack in two steps:
+the fixed seeder (emergency rows 97 → 107, one canonical event per request),
+then `scripts/dedupe_request_events.py --apply`, which removed **50**
+duplicates and left exactly one per request.
+
+Twenty-three genuine `TRANSITION_*` events were protected and kept; the live
+dispatcher appended two more during the operation, which is the append-only
+behaviour working. No request record, provider response or reservation was
+touched. Full account: [KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md) §1.19.
+
 ### Not verified
 
 **No browser.** No browser automation was available, so no UI workflow has

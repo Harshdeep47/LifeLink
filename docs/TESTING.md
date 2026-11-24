@@ -6,9 +6,9 @@ Measured by running the suites on **2026-11-24**. Nothing here is estimated.
 
 ```
 backend
-  pytest tests                 610 passed, 0 failed, 0 skipped   (~20s)
-  pytest tests/unit            536 passed
-  pytest tests/integration      74 passed
+  pytest tests                 657 passed, 0 failed, 0 skipped   (~22s)
+  pytest tests/unit            566 passed
+  pytest tests/integration      91 passed
   ruff check                   All checks passed
 
 frontend
@@ -25,7 +25,7 @@ security
   validate_facility_dataset.py exit 0
 ```
 
-**Total: 904 automated tests, all passing.**
+**Total: 951 automated tests, all passing.**
 
 Plus **56 live checks** against the deployed API (19 authentication, 37
 workflow), which are not part of the suite because they need AWS
@@ -51,7 +51,7 @@ needing a human are listed in
 
 ## Suites
 
-### Backend — unit, 536
+### Backend — unit, 566
 
 | File | Tests | Covers |
 |---|---|---|
@@ -61,6 +61,7 @@ needing a human are listed in
 | `test_unknown_is_not_zero.py` | 40 | `UNKNOWN` never becomes `0` on either code path |
 | `test_geo_coverage.py` | 34 | Cell coverage as a property at ten radii; bounded fan-out; high latitude |
 | `test_facility_dataset_validation.py` | 34 | Unsourced or implausible facility records are refused |
+| `test_dedupe_request_events.py` | 30 | What the duplicate-event cleanup must **never** delete: genuine events, request records, responses, other entity types |
 | `test_authorization.py` | 33 | RBAC matrix, suspension, cross-organization denial, IDOR |
 | `test_freshness_and_eligibility.py` | 31 | Freshness bands at every boundary; update-versus-verification |
 | `test_emergency.py` | 30 | Request lifecycle, priority mapping, P3 anti-starvation, response tally |
@@ -73,13 +74,14 @@ needing a human are listed in
 | `test_inventory_operations.py` | 22 | Stock operations, negative-stock prevention, stale updates |
 | `test_stage_prefix.py` | 19 | Route resolution behind the API Gateway stage prefix |
 
-### Backend — integration, 74
+### Backend — integration, 91
 
 Against a real DynamoDB API via moto.
 
 | File | Tests | Covers |
 |---|---|---|
 | `test_end_to_end_scenarios.py` | 21 | The ten scenarios the specification names |
+| `test_seed_idempotency.py` | 17 | **Seeding twice must not duplicate synthetic events**, and the application's event writer must stay append-only |
 | `test_reservation_integration.py` | 23 | Atomic pool counter; two callers racing for the last units; **the service's own release decision** (see [RESERVATION_COUNTER_DEFECT](RESERVATION_COUNTER_DEFECT.md)) |
 | `test_inventory_integration.py` | 15 | Conditional writes, transactions, index queries |
 | `test_camp_discovery_radius.py` | 9 | The 20 km cap, reported rather than hidden |
@@ -229,7 +231,7 @@ Each is listed in [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 
 | Gate | Command | Current |
 |---|---|---|
-| Backend tests | `pytest tests` | 610 passing |
+| Backend tests | `pytest tests` | 657 passing |
 | Frontend tests | `npm test` | 294 passing |
 | Backend lint | `ruff check` | clean |
 | Frontend lint | `npm run lint` | clean, 0 errors |

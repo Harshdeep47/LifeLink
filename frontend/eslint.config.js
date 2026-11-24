@@ -8,6 +8,10 @@
  * runs it.
  *
  * ESLint 9 uses flat config, which is why an `.eslintrc` would not have helped.
+ * A legacy `.eslintrc.json` did exist here and was silently ignored by v9. It
+ * was removed rather than left in place: a config file that looks
+ * authoritative and changes nothing is worse than no config file, because
+ * someone will edit it and conclude the linter is broken.
  *
  * The rule set is deliberately modest — correctness and hook-safety rules that
  * catch real bugs, not a style regime. Formatting is not enforced here; it

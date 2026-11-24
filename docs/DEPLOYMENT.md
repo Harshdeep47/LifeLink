@@ -21,7 +21,7 @@ Run every one of these and confirm the expected result before deploying.
 | 4 | Spend limit | AWS Settings → Billing | Confirmed with the owner |
 | 5 | Template syntax | `sam validate --template infrastructure/template.yaml --lint` | Valid (SAM CLI 1.174.0) |
 | 6 | Template lint | `cfn-lint infrastructure/template.yaml` | No findings |
-| 7 | Backend tests | `cd backend && pytest tests` | 610 passing |
+| 7 | Backend tests | `cd backend && pytest tests` | 657 passing |
 | 8 | Frontend tests | `cd frontend && npm test` | 294 passing |
 | 9 | Frontend build | `cd frontend && npm run build` | Succeeds |
 | 10 | Lint | `cd backend && ruff check src tests` | Clean |
