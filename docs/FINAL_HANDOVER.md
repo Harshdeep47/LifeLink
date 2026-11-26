@@ -419,7 +419,17 @@ was not gitignored as a directory, only `*.pem` was. See item 12.
 
 [AWS_COST_ESTIMATE.md](AWS_COST_ESTIMATE.md).
 
-| Scenario | Monthly |
+> **Measured, 26 November 2026.** Actual billing for 1–25 November 2026:
+> **$0.1628 gross usage**, **−$0.1628 credits**, **$0.00 net payable**. A full
+> month projects to roughly **$0.45–$0.50 gross**, still $0.00 net while
+> credits last. The only recurring charge is the **$0.40 Secrets Manager
+> secret**, which has never been accessed. **No Amazon Location index charge
+> and no customer-managed KMS key charge were incurred.** About 11% of gross
+> usage came from Cost Explorer and verification traffic rather than from
+> running the system, and billing data can lag 24 hours. The estimates below
+> are the original projections.
+
+| Scenario (original estimate) | Monthly |
 |---|---|
 | Deployed and idle | **$1.40 fixed** — $1.00 Amazon Location index + $0.40 Secrets Manager |
 | Demonstration traffic | **$1.40–4.40** |
@@ -433,9 +443,16 @@ is why retention is set on every log group in the template rather than left at
 "never expire".
 
 Not included: a custom domain, WAF, or any advanced feature requiring account
-activation. These figures are AWS list prices applied to modelled volumes, not
-observed charges — **nothing has been billed, because nothing has been
-deployed.**
+activation. The figures above are AWS list prices applied to modelled volumes.
+
+> **Observed charges, 26 November 2026.** LifeLink is deployed and the actual
+> bill is known: **$0.1628 gross usage** for 1–25 November 2026,
+> **−$0.1628 credits**, **$0.00 net payable**. A full month projects to about
+> **$0.45–$0.50 gross**. The only recurring charge is the **$0.40 Secrets
+> Manager secret**, never accessed; the anticipated $1.00 charges were never
+> incurred. About 11% of gross usage came from Cost Explorer and verification
+> traffic rather than from running the system, and billing data can lag
+> 24 hours.
 
 ## 20. PDF books and verified page counts — COMPLETE
 
@@ -499,8 +516,10 @@ listings, blank pages and a drifted listing — and all three now have checks.
 Full list: [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md). The ones that bound
 what this project can claim:
 
-1. **Nothing is deployed.** Every AWS operational claim is a design
-   expectation. The point-in-time restore procedure is **untested**.
+1. ~~**Nothing is deployed.**~~ **SUPERSEDED — LifeLink is deployed.** The
+   original entry read: "Nothing is deployed. Every AWS operational claim is a
+   design expectation." The point-in-time restore procedure is still
+   **untested**.
    *(Historical, 15 November 2026. LifeLink was deployed later that day and
    again on 24 November; see [DEPLOYMENT_RECORD](DEPLOYMENT_RECORD.md) and
    [REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md). The restore procedure
@@ -637,9 +656,15 @@ If you would rather publish somewhere else, replace step 5 with
 `git remote set-url origin <your-url>` first.
 
 **Before making the repository public, consider:** the README and books state
-plainly that nothing is deployed, that the compatibility reference is
-unreviewed, and that all data is synthetic. Keep those statements. They are
+plainly what is and is not verified — that the compatibility reference is
+unreviewed, that all data is synthetic, that no restore has been rehearsed and
+that twelve browser checks remain outstanding. Keep those statements. They are
 what make the project defensible rather than overclaiming.
+
+*(Updated 26 November 2026: the deployment-status statements have been
+corrected throughout — LifeLink is deployed. The honesty statements about
+synthetic data, the unreviewed reference and unverified workflows stand
+unchanged.)*
 
 > *Updated 24 November 2026: the repository is now public and the deployment
 > statements were corrected at source, since the project is deployed. The
@@ -663,7 +688,9 @@ In the order I would do them.
 **Then, if you intend to deploy:**
 
 3. Deploy to a `dev` stack and set a spend limit **first**, in AWS Settings.
-   The fixed cost is $1.40/month.
+   *(Measured on the deployed stack: the only recurring charge is $0.40/month
+   for the Secrets Manager secret. The anticipated $1.00 charges were never
+   incurred.)*
 4. **Rehearse the restore procedure** and then remove the UNTESTED marker from
    [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md) §8. An untested restore is
    not a backup strategy.

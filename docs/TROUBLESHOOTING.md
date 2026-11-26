@@ -307,8 +307,10 @@ regenerated.
 
 ## AWS
 
-Nothing has been deployed, so none of the following has been observed. These
-are the failures the implementation anticipates.
+LifeLink is deployed (24 November 2026), and some of the following **has**
+been observed in practice — notably the stage-prefix 404s and the reservation
+counter defect. The remainder are failures the implementation anticipates but
+which have not occurred.
 
 ### Sudden `AccessDenied` on operations that previously worked
 

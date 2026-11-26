@@ -191,8 +191,10 @@ assets only and holds no personal data.
 
 A consequence: there is no cross-region disaster recovery, and
 [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md) §8 describes within-region
-point-in-time restore only. That restore procedure is **untested**, because
-nothing has been deployed.
+point-in-time restore only. That restore procedure is **untested**: LifeLink
+is deployed (24 November 2026) and point-in-time recovery is enabled on eight
+of the twelve tables, but no restore has been **rehearsed** against the
+running stack.
 
 ## 10. Demo data
 

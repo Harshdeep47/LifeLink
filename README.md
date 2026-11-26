@@ -174,6 +174,37 @@ docs/             Architecture, decisions, runbooks, and the three PDF books
 | [FINAL_POLISH_REPORT](docs/FINAL_POLISH_REPORT.md) | The two missing reservation screens, an auth bug, a token-audience fix |
 | [RESERVATION_COUNTER_DEFECT](docs/RESERVATION_COUNTER_DEFECT.md) | **Latest** — post-mortem: confirming a hold released its units, permitting overselling |
 
+### The teaching library — `final_docs/`
+
+**70 Markdown documents** written for someone learning the project from
+nothing: beginner-to-advanced explanations, AWS Console walkthroughs, lab
+demonstration scripts and viva preparation.
+
+| Entry point | Purpose |
+|---|---|
+| [final_docs/README.md](final_docs/README.md) | **Start here** — index and a two-day study path |
+| [final_docs/AI_TEACHING_CONTEXT.md](final_docs/AI_TEACHING_CONTEXT.md) | Complete project briefing in one file, for an AI assistant teaching this project |
+| [CONFIGURATION_WALKTHROUGHS.md](final_docs/09_PRACTICAL_AWS_DEMONSTRATIONS/CONFIGURATION_WALKTHROUGHS.md) | 60 AWS settings with their deployed values and exact Console paths |
+| [Known limitations and actual status](final_docs/13_REFERENCE_AND_REVISION/05_Known_Limitations_And_Actual_Status.md) | What is verified, what is not, and what to admit |
+
+Thirteen sections cover the architecture, a file-by-file source map, every AWS
+service, the data model, each feature, security, practical demonstrations, lab
+evaluation and interview preparation. Every technical claim was checked against
+the running system, the infrastructure template or the source code on
+24 November 2026.
+
+**Three things, often confused.** They are complementary, not alternatives:
+
+| | What it is | Kept current by |
+|---|---|---|
+| **`final_docs/`** | The **teaching layer**. Hand-written Markdown explaining *how to understand, demonstrate and talk about* LifeLink | Written and verified against the live system; not auto-generated |
+| **The three PDF books** | The **reference layer**. Long-form technical books, **generated from this repository** — code listings extracted and metrics measured at build time | `python scripts/build_books.py` |
+| **The deployed application** | The **running system**: stack `lifelink-dev`, 66 resources in `ap-southeast-2`, live at `d324z37do52g8f.cloudfront.net` | [DEPLOYMENT_RECORD](docs/DEPLOYMENT_RECORD.md) and [REPOSITORY_VS_DEPLOYED](docs/REPOSITORY_VS_DEPLOYED.md) |
+
+Where `final_docs/` and an older document disagree about current status,
+`final_docs/` and [DEPLOYMENT_RECORD](docs/DEPLOYMENT_RECORD.md) are
+authoritative.
+
 ### The three books
 
 | Book | Pages | Topic |
@@ -182,10 +213,12 @@ docs/             Architecture, decisions, runbooks, and the three PDF books
 | [Book 2](docs/books/LifeLink_Book_2_Implementation_and_Operations.pdf) | 147 | Implementation and operations |
 | [Book 3](docs/books/LifeLink_Book_3_Interview_Viva_and_Engineering.pdf) | 101 | Concepts, viva and interview preparation |
 
-Rebuilt on 24 November 2026. Every count, version and size in them is
-re-measured from this repository at build time, so they carry the current
-figures; see [DOCUMENTATION_VALIDATION](docs/DOCUMENTATION_VALIDATION.md) for
-the 24 validation checks and the facts table.
+Rebuilt on **26 November 2026**, when the deployment-status and cost
+statements in their sources were corrected. Every count, version and size in
+them is re-measured from this repository at build time, so they carry the
+current figures; see
+[DOCUMENTATION_VALIDATION](docs/DOCUMENTATION_VALIDATION.md) for the
+validation checks and the facts table.
 
 Markdown sources live beside each PDF. The books are **generated from this
 repository**: code listings are extracted at build time, metrics come from

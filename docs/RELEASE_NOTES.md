@@ -1,10 +1,20 @@
 # LifeLink — Release Notes
 
-## Unreleased — repository state, 24 November 2026
+## Repository snapshot — 24 November 2026 (before that day's deployment)
 
-**Not deployed.** This section describes the repository, which is ahead of the
-live application. Full delta:
-[REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md).
+> **Corrected 26 November 2026.** This section previously opened "**Not
+> deployed.** This section describes the repository, which is ahead of the live
+> application." That was accurate when written and is no longer: everything was
+> **deployed later the same day**, and the repository and the deployed
+> application are now **in sync** — no application or infrastructure code
+> changed between the deployed release `f9765af` and the current `668a771`.
+>
+> See [DEPLOYMENT_RECORD](DEPLOYMENT_RECORD.md) and
+> [REPOSITORY_VS_DEPLOYED](REPOSITORY_VS_DEPLOYED.md) for current status.
+>
+> The gate figures below are a **point-in-time snapshot** taken earlier on
+> 24 November and are kept as the historical record. The final verified
+> figures are **657 backend and 294 frontend tests**.
 
 Measured on 24 November 2026 by the commands named, not estimated.
 
@@ -255,9 +265,11 @@ wrong as a search that silently drops a facility.
 Full list in [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md). The ones that
 affect what this release can honestly claim:
 
-- **Nothing has been deployed.** Every operational claim about AWS behaviour
-  is a design expectation validated by two linters, not an observation. The
-  point-in-time restore procedure in the runbook is **untested**.
+- **Not deployed at the time of this snapshot.** *(Corrected 26 November
+  2026: deployment happened later the same day. Operational claims have since
+  been verified by 56 live checks against the running system.)* The
+  point-in-time restore procedure in the runbook remains **untested** — it has
+  never been rehearsed.
 - **The blood compatibility reference has not been reviewed by a qualified
   professional.** It is marked as such in the data file, in the API response,
   in the interface and in all three books. The loader refuses to start without

@@ -415,7 +415,7 @@ Point at two rows:
 | How is the audit trail tamper-resistant? | IAM grants no `UpdateItem`/`DeleteItem` on that table. §4(a). |
 | What happens if a queue consumer fails? | Every queue has a DLQ and every DLQ has a CloudWatch alarm. Messages are idempotent, so redelivery is safe. |
 | Where are secrets? | Secrets Manager; none in the frontend bundle. The Cognito app client has no secret by design — it is a public client using PKCE. |
-| What does it cost? | ~$0.40/month fixed. `docs/AWS_COST_ESTIMATE.md`. |
+| What does it cost? | **$0.00 net.** Measured gross usage was $0.1628 for 1–25 Nov 2026, fully offset by FREE-plan credits; a full month projects to ~$0.45–$0.50 gross. The only recurring charge is the $0.40/month Secrets Manager secret, which has never been accessed. `docs/AWS_COST_ESTIMATE.md`. |
 
 ---
 

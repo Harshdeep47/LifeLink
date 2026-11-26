@@ -242,9 +242,12 @@ def build_document() -> dict:
             {"url": "http://127.0.0.1:8080", "description": "Local development"},
             {
                 "url": "https://{apiId}.execute-api.{region}.amazonaws.com/{stage}",
-                "description": "AWS deployment (not currently deployed)",
+                "description": (
+                    "AWS deployment. The lifelink-dev stack is deployed and live "
+                    "in ap-southeast-2; substitute the deployed API id for apiId."
+                ),
                 "variables": {
-                    "apiId": {"default": "example"},
+                    "apiId": {"default": "uk6itz2a5b"},
                     "region": {"default": "ap-southeast-2"},
                     "stage": {"default": "dev"},
                 },

@@ -7,10 +7,21 @@ system rather than against the template.
 > **This record superseded the "never deployed" statements elsewhere in the
 > library.** Those were accurate when written, earlier the same day.
 >
-> **Update, 24 November 2026:** those statements have since been corrected at
-> source. `KNOWN_LIMITATIONS.md` no longer claims nothing is deployed, and the
-> three PDF books were regenerated after the same correction. The current
-> repository-versus-deployed position is in `REPOSITORY_VS_DEPLOYED.md`.
+> **Update, 24 November 2026:** `KNOWN_LIMITATIONS.md` no longer claims
+> nothing is deployed, and the three PDF books were regenerated.
+>
+> **Correction, 26 November 2026.** The sentence above originally read that the
+> books "were regenerated after the same correction", which **overstated what
+> happened**. The books were rebuilt, but their source Markdown still carried
+> eleven stale current-tense claims that nothing had been deployed — a
+> documentation audit on 26 November found them. Those eleven references have
+> now been corrected at source in `docs/books/*/` and all three PDFs
+> regenerated. Several other documents also still carried stale claims and have
+> been corrected: `DEPLOYMENT.md`, `AWS_COST_ESTIMATE.md`, `RELEASE_NOTES.md`,
+> `EDGE_CASE_REGISTER.md` and `PRIVACY_AND_DATA_HANDLING.md`.
+>
+> The current repository-versus-deployed position is in
+> `REPOSITORY_VS_DEPLOYED.md`.
 
 ---
 
@@ -485,8 +496,11 @@ works.
    under load.
 8. **The eight alarms have never fired.** They are configured and mapped to
    runbook steps; none has been triggered, so none has been observed working.
-9. **The three PDF books predate deployment** and state that nothing is
-   deployed. They have not been regenerated. This file is the correction.
+9. **The three PDF books have been corrected and regenerated.** They
+   originally predated deployment and stated that nothing was deployed.
+   *(Updated 26 November 2026: eleven stale references were corrected at
+   source in `docs/books/*/` and all three PDFs rebuilt — 80, 147 and 101
+   pages, all validation checks passing.)*
 10. **The blood compatibility reference remains unreviewed** by a qualified
     professional. Deployment changes nothing about this. **LifeLink must not be
     used for clinical decisions.**

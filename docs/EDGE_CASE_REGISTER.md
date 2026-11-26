@@ -177,8 +177,11 @@ The four not handled or not tested are disclosed rather than omitted:
 - **S-09, S-10** — file upload validation. No upload flow exists in the
   application, so the protections are designed but not built. The S3 bucket is
   provisioned and private.
-- **S-24, S-25** — deployment rollback and backup restoration. Both require a
-  deployment, and nothing has been deployed.
+- **S-24, S-25** — deployment rollback and backup restoration. **Still
+  untested**, but the reason has changed: LifeLink *is* deployed (24 November
+  2026), and neither a rollback nor a point-in-time restore has been
+  **rehearsed** against the running stack. The procedures are documented in
+  [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md) and remain unexercised.
 
 **C-22** is partial: all timestamps are UTC and conversion is correct, but the
 demo geography is IST, which has no daylight saving. A deployment spanning a

@@ -207,9 +207,15 @@ argument for deploying rather than trusting a validated template.
 authentication, cross-organization refusal and role separation, all against the
 running system.
 
-**"What does it cost?"** $0.40/month fixed, covered by $120 of promotional
-credits. The customer-managed KMS key that would have cost $1.00/month was
-replaced with an AWS-managed key, and the trade-off is documented.
+**"What does it cost?"** Net payable is **$0.00**. Measured gross usage was
+**$0.1628** for 1–25 November 2026, fully offset by FREE-plan credits, and a
+full month projects to roughly **$0.45–$0.50 gross**. The only recurring
+charge is the **$0.40/month Secrets Manager secret** — 70% of gross usage, and
+it has never been accessed. The customer-managed KMS key that would have cost
+$1.00/month was replaced with an AWS-managed key, which is free, so that charge
+was never incurred. Credits remaining: $159.84, expiring 2027-05-15. Note that
+about 11% of gross usage came from Cost Explorer and verification traffic
+rather than from running the system, and billing data can lag 24 hours.
 
 **"What is the weakest part?"** The compatibility reference, because it is
 unreviewed. Then the absence of the Cognito browser redirect. Then that no
