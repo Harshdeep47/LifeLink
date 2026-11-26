@@ -121,8 +121,9 @@ fixed and then redriven. Never redrive before diagnosis.
 **A47. What is your RPO and RTO?**
 
 Design assumptions, not measurements: seconds of RPO from point-in-time
-recovery, hours of RTO for a restore. Nothing has been deployed, so no restore
-rehearsal has been performed, and the documentation marks those rows untested.
+recovery, hours of RTO for a restore. LifeLink is deployed and PITR is enabled
+on eight of twelve tables, but **no restore rehearsal has been performed**, so
+the documentation marks those rows untested.
 
 **A48. What happens in a regional outage?**
 
@@ -133,7 +134,7 @@ the limitations rather than glossed.
 
 **A49. What is the monthly cost?**
 
-About $1.40 in unavoidable fixed charges — a KMS key and a Secrets Manager
+About $0.40 in unavoidable fixed charges — a Secrets Manager
 secret — with everything else inside free tiers at demonstration volume. Map
 tiles and log ingestion are the two items that scale with use. The
 documentation says explicitly that the application is not free to run.

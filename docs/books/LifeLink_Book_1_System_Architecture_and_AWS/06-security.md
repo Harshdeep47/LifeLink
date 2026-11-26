@@ -47,9 +47,10 @@ or shared.
 ## 16.4 Cost
 
 A customer-managed KMS key costs $1 per month plus request charges. Secrets
-Manager costs $0.40 per secret per month. Together roughly $1.40 monthly — the
-only unavoidable fixed cost in the entire architecture, and worth naming as such
-in the cost chapter.
+Manager costs $0.40 per secret per month. In the deployed stack **no
+customer-managed KMS key was created** — all three KMS keys are AWS-managed and
+therefore free — so the $0.40 secret is the only unavoidable fixed cost in the
+entire architecture, and worth naming as such in the cost chapter.
 
 <!-- pagebreak -->
 

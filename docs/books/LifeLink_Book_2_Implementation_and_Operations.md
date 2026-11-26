@@ -1914,8 +1914,10 @@ age, then let the stream retry or invoke the publisher manually.
 Never restore over a live table. The restore target is always new.
 
 :::warning Untested
-This procedure is written from the AWS documentation and has not been executed
-against a LifeLink deployment, because nothing has been deployed.
+This procedure is written from the AWS documentation and has **not been
+rehearsed** against the running stack. LifeLink is deployed (24 November 2026)
+and point-in-time recovery is enabled on eight of the twelve tables, but no
+restore has been exercised.
 :::
 
 ## 28.6 Suspending an organization

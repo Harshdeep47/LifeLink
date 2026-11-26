@@ -241,9 +241,11 @@ is not engineering. The blood compatibility reference has not been reviewed by
 a qualified professional, and it is marked `UNREVIEWED_SYNTHETIC` everywhere it
 appears. The system also deliberately makes no clinical decisions.
 
-**"Did you deploy it?"** No. The infrastructure template is validated by
-`cfn-lint` and `sam validate --lint` with no findings, and nothing has been
-deployed. I have not claimed any production figures.
+**"Did you deploy it?"** Yes — on 24 November 2026. Stack `lifelink-dev` is
+live in `ap-southeast-2` with 66 resources, and the deployment was verified by
+56 live checks against the running system. What I still do not claim is a
+tested disaster-recovery capability or browser-verified workflows: no restore
+has been rehearsed, and twelve browser checks remain outstanding.
 
 **"How do you know it works?"** 657 backend tests and
 294 frontend tests, with the end-to-end scenarios named after
@@ -251,9 +253,10 @@ the ten flows the specification requires. The numbers in the documentation are
 produced by running the suites at build time, not typed in.
 
 **"What is the weakest part?"** The absence of a reviewed compatibility
-reference, followed by the fact that nothing has been deployed so several
-operational claims are design assumptions rather than measurements. Both are
-in the known-limitations table.
+reference, followed by the fact that several operational claims are design
+assumptions rather than measurements: LifeLink is deployed, but rollback and
+restore have never been rehearsed, and the browser workflows have not been
+independently verified by a person. All are in the known-limitations table.
 
 ## 5.3 Deliberately showing a refusal
 
@@ -1165,8 +1168,9 @@ fixed and then redriven. Never redrive before diagnosis.
 **A47. What is your RPO and RTO?**
 
 Design assumptions, not measurements: seconds of RPO from point-in-time
-recovery, hours of RTO for a restore. Nothing has been deployed, so no restore
-rehearsal has been performed, and the documentation marks those rows untested.
+recovery, hours of RTO for a restore. LifeLink is deployed and PITR is enabled
+on eight of twelve tables, but **no restore rehearsal has been performed**, so
+the documentation marks those rows untested.
 
 **A48. What happens in a regional outage?**
 
@@ -1177,7 +1181,7 @@ the limitations rather than glossed.
 
 **A49. What is the monthly cost?**
 
-About $1.40 in unavoidable fixed charges — a KMS key and a Secrets Manager
+About $0.40 in unavoidable fixed charges — a Secrets Manager
 secret — with everything else inside free tiers at demonstration volume. Map
 tiles and log ingestion are the two items that scale with use. The
 documentation says explicitly that the application is not free to run.
@@ -1913,14 +1917,15 @@ handler re-raises on error specifically to make the alarm fire.
 Point-in-time recovery with a 35-day window, versioned S3, and infrastructure
 in version control. Within-region only, because the account cannot do
 cross-region replication. And the RPO and RTO figures are design assumptions,
-not measurements — nothing has been deployed, so no restore rehearsal has been
-run. I would not claim a tested DR capability.
+not measurements — the system is deployed, but **no restore rehearsal has ever
+been run**. I would not claim a tested DR capability.
 
 *Assessing: honesty. The temptation is to quote numbers.*
 
 **"What does it cost?"**
 
-About $1.40 a month fixed — a KMS key and a Secrets Manager secret — with
+About $0.40 a month fixed — a Secrets Manager secret, with no
+customer-managed KMS key — and with
 everything else inside free tiers at demonstration volume. The two items that
 scale are map tiles and log ingestion. I would not say the application is free
 to run.
@@ -3053,7 +3058,7 @@ an abstraction.
 
 **C1. What does this system cost to run?**
 
-About $1.40 a month in fixed charges — a KMS key at $1 and a Secrets Manager
+About $0.40 a month in fixed charges — a Secrets Manager
 secret at $0.40 — with everything else inside free tiers at demonstration
 volume. The application is not free to run, and the documentation says so.
 

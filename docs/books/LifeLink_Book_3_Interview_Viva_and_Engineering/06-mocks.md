@@ -132,14 +132,15 @@ handler re-raises on error specifically to make the alarm fire.
 Point-in-time recovery with a 35-day window, versioned S3, and infrastructure
 in version control. Within-region only, because the account cannot do
 cross-region replication. And the RPO and RTO figures are design assumptions,
-not measurements — nothing has been deployed, so no restore rehearsal has been
-run. I would not claim a tested DR capability.
+not measurements — the system is deployed, but **no restore rehearsal has ever
+been run**. I would not claim a tested DR capability.
 
 *Assessing: honesty. The temptation is to quote numbers.*
 
 **"What does it cost?"**
 
-About $1.40 a month fixed — a KMS key and a Secrets Manager secret — with
+About $0.40 a month fixed — a Secrets Manager secret, with no
+customer-managed KMS key — and with
 everything else inside free tiers at demonstration volume. The two items that
 scale are map tiles and log ingestion. I would not say the application is free
 to run.

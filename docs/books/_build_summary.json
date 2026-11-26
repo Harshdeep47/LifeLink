@@ -9,7 +9,7 @@
     "sections": 169,
     "figures": 16,
     "tables": 45,
-    "words": 16646,
+    "words": 16723,
     "pages": 80,
     "target_pages": "70-100",
     "meets_target": true,
@@ -20,7 +20,7 @@
         {
           "name": "file exists",
           "passed": true,
-          "detail": "236 KB"
+          "detail": "237 KB"
         },
         {
           "name": "opens",
@@ -65,7 +65,7 @@
       ],
       "ok": true,
       "pages": 80,
-      "total_characters": 146437,
+      "total_characters": 146947,
       "vector_drawings": 1502,
       "raster_images": 0
     },
@@ -82,7 +82,7 @@
     "sections": 211,
     "figures": 7,
     "tables": 32,
-    "words": 26633,
+    "words": 26667,
     "pages": 147,
     "target_pages": "90-130",
     "meets_target": true,
@@ -138,7 +138,7 @@
       ],
       "ok": true,
       "pages": 147,
-      "total_characters": 281984,
+      "total_characters": 282241,
       "vector_drawings": 1833,
       "raster_images": 0
     },
@@ -155,7 +155,7 @@
     "sections": 48,
     "figures": 5,
     "tables": 7,
-    "words": 27427,
+    "words": 27472,
     "pages": 101,
     "target_pages": "80-120",
     "meets_target": true,
@@ -166,7 +166,7 @@
         {
           "name": "file exists",
           "passed": true,
-          "detail": "254 KB"
+          "detail": "255 KB"
         },
         {
           "name": "opens",
@@ -211,7 +211,7 @@
       ],
       "ok": true,
       "pages": 101,
-      "total_characters": 194927,
+      "total_characters": 195252,
       "vector_drawings": 698,
       "raster_images": 0
     },

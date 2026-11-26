@@ -341,7 +341,7 @@ an abstraction.
 
 **C1. What does this system cost to run?**
 
-About $1.40 a month in fixed charges — a KMS key at $1 and a Secrets Manager
+About $0.40 a month in fixed charges — a Secrets Manager
 secret at $0.40 — with everything else inside free tiers at demonstration
 volume. The application is not free to run, and the documentation says so.
 

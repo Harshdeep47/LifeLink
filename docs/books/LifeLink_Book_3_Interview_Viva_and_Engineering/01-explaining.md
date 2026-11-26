@@ -241,9 +241,11 @@ is not engineering. The blood compatibility reference has not been reviewed by
 a qualified professional, and it is marked `UNREVIEWED_SYNTHETIC` everywhere it
 appears. The system also deliberately makes no clinical decisions.
 
-**"Did you deploy it?"** No. The infrastructure template is validated by
-`cfn-lint` and `sam validate --lint` with no findings, and nothing has been
-deployed. I have not claimed any production figures.
+**"Did you deploy it?"** Yes — on 24 November 2026. Stack `lifelink-dev` is
+live in `ap-southeast-2` with 66 resources, and the deployment was verified by
+56 live checks against the running system. What I still do not claim is a
+tested disaster-recovery capability or browser-verified workflows: no restore
+has been rehearsed, and twelve browser checks remain outstanding.
 
 **"How do you know it works?"** {{fact:test_backend}} backend tests and
 {{fact:test_frontend}} frontend tests, with the end-to-end scenarios named after
@@ -251,9 +253,10 @@ the ten flows the specification requires. The numbers in the documentation are
 produced by running the suites at build time, not typed in.
 
 **"What is the weakest part?"** The absence of a reviewed compatibility
-reference, followed by the fact that nothing has been deployed so several
-operational claims are design assumptions rather than measurements. Both are
-in the known-limitations table.
+reference, followed by the fact that several operational claims are design
+assumptions rather than measurements: LifeLink is deployed, but rollback and
+restore have never been rehearsed, and the browser workflows have not been
+independently verified by a person. All are in the known-limitations table.
 
 ## 5.3 Deliberately showing a refusal
 

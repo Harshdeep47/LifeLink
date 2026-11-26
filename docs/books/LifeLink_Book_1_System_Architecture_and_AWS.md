@@ -1790,9 +1790,10 @@ or shared.
 ## 16.4 Cost
 
 A customer-managed KMS key costs $1 per month plus request charges. Secrets
-Manager costs $0.40 per secret per month. Together roughly $1.40 monthly — the
-only unavoidable fixed cost in the entire architecture, and worth naming as such
-in the cost chapter.
+Manager costs $0.40 per secret per month. In the deployed stack **no
+customer-managed KMS key was created** — all three KMS keys are AWS-managed and
+therefore free — so the $0.40 secret is the only unavoidable fixed cost in the
+entire architecture, and worth naming as such in the cost chapter.
 
 <!-- pagebreak -->
 
@@ -2344,8 +2345,8 @@ decision point, not once at matching time.*
 :::warning These are design assumptions, not tested figures
 The specification forbids claiming a disaster recovery capability that has not
 been tested. The numbers below describe what the configuration should deliver.
-A full restore rehearsal has not been performed in AWS, because nothing has
-been deployed.
+LifeLink is deployed and point-in-time recovery is enabled on eight of the
+twelve tables, but **a full restore rehearsal has never been performed**.
 :::
 
 | Scenario | RPO (design) | RTO (design) | Tested? |
@@ -2394,11 +2395,17 @@ constraint or an explicit, accepted risk decision.
 
 ## 25.2 The honest summary
 
-:::warning This application is not free to run
-Two fixed charges — a KMS key and a Secrets Manager secret — total about
-**$1.40 per month** regardless of usage. Everything else sits inside free tiers
-at demonstration volume, but map tiles and log ingestion are the two items that
-scale with use and can surprise.
+:::warning This application is not free to run, but it is credited
+Measured for 1–25 November 2026: **$0.1628 gross usage**, **−$0.1628
+credits**, **$0.00 net payable**. A full month projects to roughly
+**$0.45–$0.50 gross**, still $0.00 net while FREE-plan credits last.
+
+The only recurring charge is the **Secrets Manager secret at $0.40 per
+month** — 70% of gross usage, and **never accessed**. The anticipated $1.00
+KMS charge was never incurred: no customer-managed key was created. Everything
+else sits inside free tiers. Note that about 11% of gross usage came from
+*inspecting* the system — Cost Explorer bills $0.01 per request — and billing
+data can lag 24 hours.
 :::
 
 The account carries 120 USD of credits expiring 2027-05-15, which comfortably
